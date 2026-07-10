@@ -1,0 +1,144 @@
+# Loki Helm values for Kubernetes production deployment
+
+loki:
+
+  auth_enabled: false
+
+  commonConfig:
+
+    replication_factor: 3
+
+  storage:
+
+    type: s3
+
+    bucketNames:
+      chunks: loki-chunks
+      ruler: loki-ruler
+      admin: loki-admin
+
+    s3:
+      region: ap-south-1
+      s3ForcePathStyle: false
+
+
+  schemaConfig:
+
+    configs:
+
+      - from: 2024-01-01
+
+        store: tsdb
+
+        object_store: s3
+
+        schema: v13
+
+        index:
+          prefix: loki_index_
+          period: 24h
+
+
+  limits_config:
+
+    retention_period: 168h
+
+    ingestion_rate_mb: 10
+
+    ingestion_burst_size_mb: 20
+
+    max_cache_freshness_per_query: 10m
+
+
+  compactor:
+
+    retention_enabled: true
+
+
+# Distributor handles incoming logs
+distributor:
+
+  replicas: 3
+
+  resources:
+
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+
+# Ingester stores log chunks
+ingester:
+
+  replicas: 3
+
+  persistence:
+
+    enabled: true
+
+    size: 50Gi
+
+    storageClass: gp3
+
+
+# Query frontend improves query performance
+queryFrontend:
+
+  replicas: 2
+
+
+# Query workers
+querier:
+
+  replicas: 3
+
+
+# Gateway exposes Loki API
+gateway:
+
+  enabled: true
+
+  replicas: 2
+
+
+# Loki can receive logs from Promtail/Fluent Bit
+service:
+
+  type: ClusterIP
+
+
+# Promtail agent configuration
+promtail:
+
+  enabled: true
+
+  config:
+
+    clients:
+
+      - url: http://loki-gateway.monitoring.svc.cluster.local/loki/api/v1/push
+
+
+# Monitoring
+monitoring:
+
+  dashboards:
+
+    enabled: true
+
+
+  serviceMonitor:
+
+    enabled: true
+
+
+# Pod security
+podSecurityContext:
+
+  runAsNonRoot: true
+
+  fsGroup: 10001

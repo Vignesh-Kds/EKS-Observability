@@ -1,0 +1,124 @@
+{
+  "apiVersion": 1,
+  "title": "Frontend Application Dashboard",
+  "uid": "frontend-app-dashboard",
+  "tags": [
+    "frontend",
+    "kubernetes",
+    "application"
+  ],
+  "timezone": "browser",
+
+  "panels": [
+    {
+      "id": 1,
+      "title": "Frontend Request Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{app=\"frontend\"}[5m]))",
+          "legendFormat": "Requests/sec"
+        }
+      ]
+    },
+
+    {
+      "id": 2,
+      "title": "Frontend HTTP Status Codes",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{app=\"frontend\"}[5m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+
+    {
+      "id": 3,
+      "title": "Frontend Error Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{app=\"frontend\",status=~\"4..|5..\"}[5m]))",
+          "legendFormat": "4xx/5xx Errors"
+        }
+      ]
+    },
+
+    {
+      "id": 4,
+      "title": "Frontend Response Time P95",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket{app=\"frontend\"}[5m])) by (le))",
+          "legendFormat": "P95 Latency"
+        }
+      ]
+    },
+
+    {
+      "id": 5,
+      "title": "Frontend Pod CPU Usage",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container=\"frontend\"}[5m])) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+
+    {
+      "id": 6,
+      "title": "Frontend Pod Memory Usage",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{container=\"frontend\"}) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+
+    {
+      "id": 7,
+      "title": "Frontend Pod Restarts",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(kube_pod_container_status_restarts_total{container=\"frontend\"}) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+
+    {
+      "id": 8,
+      "title": "Frontend Available Replicas",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{deployment=\"frontend\"})"
+        }
+      ]
+    },
+
+    {
+      "id": 9,
+      "title": "Frontend Network Traffic",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(container_network_receive_bytes_total{pod=~\"frontend.*\"}[5m]))",
+          "legendFormat": "Inbound Traffic"
+        },
+        {
+          "expr": "sum(rate(container_network_transmit_bytes_total{pod=~\"frontend.*\"}[5m]))",
+          "legendFormat": "Outbound Traffic"
+        }
+      ]
+    }
+  ]
+}

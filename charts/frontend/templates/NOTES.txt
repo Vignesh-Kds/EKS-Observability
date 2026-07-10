@@ -1,0 +1,74 @@
+Thank you for installing the Frontend application.
+
+Release Information
+-------------------
+Release Name : {{ .Release.Name }}
+Namespace    : {{ .Release.Namespace }}
+Chart        : {{ .Chart.Name }}
+Version      : {{ .Chart.Version }}
+
+Check the deployment
+--------------------
+kubectl get all -n {{ .Release.Namespace }}
+
+Check the Pods
+--------------
+kubectl get pods -n {{ .Release.Namespace }}
+
+Check the Service
+-----------------
+kubectl get svc -n {{ .Release.Namespace }}
+
+{{- if .Values.ingress.enabled }}
+
+Ingress
+-------
+kubectl get ingress -n {{ .Release.Namespace }}
+
+Application URL
+---------------
+{{- if .Values.ingress.tls.enabled }}
+https://{{ .Values.ingress.host }}
+{{- else }}
+http://{{ .Values.ingress.host }}
+{{- end }}
+
+{{- else }}
+
+Port Forward (for testing)
+--------------------------
+kubectl port-forward svc/{{ include "frontend.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+
+Open:
+http://localhost:8080
+
+{{- end }}
+
+View Pod Logs
+-------------
+kubectl logs -f deployment/{{ include "frontend.fullname" . }} -n {{ .Release.Namespace }}
+
+Describe the Deployment
+-----------------------
+kubectl describe deployment {{ include "frontend.fullname" . }} -n {{ .Release.Namespace }}
+
+Helm Commands
+-------------
+Upgrade:
+helm upgrade {{ .Release.Name }} . -n {{ .Release.Namespace }}
+
+Rollback:
+helm rollback {{ .Release.Name }} 1 -n {{ .Release.Namespace }}
+
+Uninstall:
+helm uninstall {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+Happy Deploying!
+
+What this NOTES.txt provides
+Displays Helm release information.
+Shows commands to verify Pods, Services, and Deployments.
+Displays the frontend URL if Ingress is enabled.
+Falls back to a kubectl port-forward command if Ingress is disabled.
+Includes commands to view logs and describe the deployment.
+Provides common Helm commands for upgrade, rollback, and uninstall.

@@ -1,0 +1,27 @@
+apiVersion: v2
+
+name: postgres
+description: A Helm chart for deploying PostgreSQL on Kubernetes
+
+type: application
+
+version: 1.0.0
+
+appVersion: "16.4"
+
+keywords:
+  - postgresql
+  - postgres
+  - database
+  - sql
+  - kubernetes
+  - helm
+
+home: https://github.com/Vignesh-Kds
+
+sources:
+  - https://github.com/Vignesh-Kds
+
+maintainers:
+  - name: Vignesh
+    email: vigneshawss@gmail.com

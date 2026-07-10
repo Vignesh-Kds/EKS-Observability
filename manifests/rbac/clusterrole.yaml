@@ -1,0 +1,86 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+
+metadata:
+  name: app-cluster-role
+
+rules:
+
+  # Read cluster resources
+  - apiGroups:
+      - ""
+    resources:
+      - pods
+      - services
+      - namespaces
+      - nodes
+      - configmaps
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+
+  # Deployment resources
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+      - replicasets
+      - statefulsets
+      - daemonsets
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # Jobs and CronJobs
+  - apiGroups:
+      - batch
+    resources:
+      - jobs
+      - cronjobs
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+
+  # Ingress resources
+  - apiGroups:
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+
+  # Storage resources
+  - apiGroups:
+      - storage.k8s.io
+    resources:
+      - storageclasses
+      - persistentvolumes
+    verbs:
+      - get
+      - list
+      - watch
+
+  # Events for troubleshooting
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - get
+      - list
+      - watch

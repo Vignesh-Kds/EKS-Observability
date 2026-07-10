@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ingress-nginx-controller
+  namespace: ingress-nginx
+data:
+  allow-snippet-annotations: "false"
+  enable-real-ip: "true"
+  use-forwarded-headers: "true"
+  compute-full-forwarded-for: "true"
+
+  proxy-body-size: "50m"
+
+  proxy-connect-timeout: "30"
+  proxy-read-timeout: "60"
+  proxy-send-timeout: "60"
+
+  ssl-protocols: "TLSv1.2 TLSv1.3"
+  ssl-ciphers: "HIGH:!aNULL:!MD5"
+
+  server-tokens: "false"
+
+  enable-brotli: "true"
+  use-gzip: "true"
+
+  log-format-escape-json: "true"
+
+  hsts: "true"
+  hsts-max-age: "31536000"
+  hsts-include-subdomains: "true"
+  hsts-preload: "true"
+
+  keep-alive: "75"
+
+  worker-processes: "auto"

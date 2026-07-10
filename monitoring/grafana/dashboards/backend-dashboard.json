@@ -1,0 +1,96 @@
+{
+  "apiVersion": 1,
+  "title": "Backend Application Dashboard",
+  "uid": "backend-app-dashboard",
+  "tags": [
+    "backend",
+    "kubernetes",
+    "application"
+  ],
+  "timezone": "browser",
+
+  "panels": [
+    {
+      "id": 1,
+      "title": "Backend Request Rate",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total[5m]))",
+          "legendFormat": "Requests/sec"
+        }
+      ]
+    },
+
+    {
+      "id": 2,
+      "title": "HTTP Error Rate (5xx)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(http_requests_total{status=~\"5..\"}[5m]))",
+          "legendFormat": "5xx Errors"
+        }
+      ]
+    },
+
+    {
+      "id": 3,
+      "title": "API Latency (P95)",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "P95 Latency"
+        }
+      ]
+    },
+
+    {
+      "id": 4,
+      "title": "Backend Pod CPU Usage",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(rate(container_cpu_usage_seconds_total{container=\"backend\"}[5m])) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+
+    {
+      "id": 5,
+      "title": "Backend Memory Usage",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(container_memory_working_set_bytes{container=\"backend\"}) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+
+    {
+      "id": 6,
+      "title": "Backend Pod Restarts",
+      "type": "timeseries",
+      "targets": [
+        {
+          "expr": "sum(kube_pod_container_status_restarts_total{container=\"backend\"}) by (pod)",
+          "legendFormat": "{{pod}}"
+        }
+      ]
+    },
+
+    {
+      "id": 7,
+      "title": "Backend Pod Availability",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{deployment=\"backend\"})"
+        }
+      ]
+    }
+  ]
+}

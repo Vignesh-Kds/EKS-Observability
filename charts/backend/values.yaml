@@ -1,0 +1,77 @@
+# Number of backend replicas
+replicaCount: 2
+
+image:
+  repository: vigneshawss/backend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: nginx
+
+  host: backend.example.com
+
+  tls:
+    enabled: false
+    secretName: backend-tls
+
+resources:
+  requests:
+    cpu: 200m
+    memory: 256Mi
+
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+
+  annotations: {}
+
+config:
+  APP_NAME: backend
+  NODE_ENV: production
+
+  # Database Configuration
+  DB_HOST: mysql-service
+  DB_PORT: "3306"
+  DB_NAME: appdb
+
+  # AWS Configuration
+  AWS_REGION: ap-south-1
+
+  # Logging
+  LOG_LEVEL: info
+
+secret:
+  enabled: true
+
+  dbUsername: appuser
+  dbPassword: change-me
+
+  jwtSecret: change-me
+
+  apiKey: change-me
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,66 @@
+# Number of frontend replicas
+replicaCount: 2
+
+image:
+  repository: vigneshawss/frontend
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 3000
+
+ingress:
+  enabled: true
+  className: nginx
+
+  host: frontend.example.com
+
+  tls:
+    enabled: false
+    secretName: frontend-tls
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 5
+
+  targetCPUUtilizationPercentage: 70
+  targetMemoryUtilizationPercentage: 80
+
+serviceAccount:
+  create: true
+  name: ""
+  automount: false
+
+  annotations: {}
+
+config:
+  APP_NAME: frontend
+  NODE_ENV: production
+
+  # Backend service inside the Kubernetes cluster
+  API_URL: http://backend-service
+
+secret:
+  enabled: true
+
+  apiKey: "change-me"
+
+  jwtSecret: "change-me"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

@@ -1,0 +1,69 @@
+name: CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+
+env:
+  NAMESPACE: monitoring
+  RELEASE_NAME: monitoring-stack
+
+jobs:
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Configure Kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Verify Cluster Connectivity
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create Namespace
+        run: |
+          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Monitoring Stack
+        run: |
+          kubectl apply -f manifests/
+
+      - name: Wait for Deployments
+        run: |
+          kubectl rollout status deployment/prometheus -n $NAMESPACE --timeout=300s || true
+          kubectl rollout status deployment/grafana -n $NAMESPACE --timeout=300s || true
+          kubectl rollout status deployment/loki -n $NAMESPACE --timeout=300s || true
+          kubectl rollout status deployment/alertmanager -n $NAMESPACE --timeout=300s || true
+
+      - name: Verify Resources
+        run: |
+          kubectl get pods -n $NAMESPACE
+          kubectl get svc -n $NAMESPACE
+          kubectl get ingress -n $NAMESPACE
+
+      - name: Deployment Summary
+        run: |
+          echo "==================================="
+          echo "Deployment completed successfully."
+          echo "==================================="

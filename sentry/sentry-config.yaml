@@ -1,0 +1,139 @@
+# Sentry Configuration
+# Project: EKS Multi-Service Application
+
+sentry:
+
+  # Environment
+  environment: production
+
+
+  # Release Version
+  # Usually populated from CI/CD pipeline
+  release:
+    enabled: true
+    version: "${APP_VERSION}"
+
+
+  # Error Tracking
+  errorTracking:
+
+    enabled: true
+
+    captureExceptions: true
+
+    captureUnhandledRejections: true
+
+
+  # Performance Monitoring
+
+  performance:
+
+    enabled: true
+
+    tracesSampleRate: 0.1
+
+    profilesSampleRate: 0.1
+
+
+  # Session Tracking
+
+  sessions:
+
+    enabled: true
+
+    autoSessionTracking: true
+
+
+  # Logging Integration
+
+  logging:
+
+    enabled: true
+
+    captureConsole:
+
+      - error
+      - warn
+
+
+
+  # Source Maps
+
+  sourceMaps:
+
+    enabled: true
+
+    upload:
+
+      enabled: true
+
+      include:
+
+        - frontend/dist
+
+      ignore:
+
+        - node_modules
+
+
+
+  # Alert Configuration
+
+  alerts:
+
+    enabled: true
+
+    rules:
+
+      - name: High Error Rate
+
+        condition:
+
+          errors_per_minute: 50
+
+        severity: critical
+
+
+      - name: Performance Degradation
+
+        condition:
+
+          transaction_duration_ms: 2000
+
+        severity: warning
+
+
+
+  # Data Privacy
+
+  privacy:
+
+    sendDefaultPii: false
+
+    sanitizeFields:
+
+      - password
+
+      - token
+
+      - authorization
+
+      - cookie
+
+
+
+  # Kubernetes Metadata
+
+  kubernetes:
+
+    enabled: true
+
+    tags:
+
+      - cluster
+
+      - namespace
+
+      - pod
+
+      - container

@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: alertmanager-config
+  namespace: monitoring
+
+data:
+  alertmanager.yml: |
+
+    global:
+      resolve_timeout: 5m
+
+    route:
+      receiver: default-receiver
+
+      group_by:
+        - alertname
+        - namespace
+        - severity
+
+      group_wait: 30s
+      group_interval: 5m
+      repeat_interval: 4h
+
+      routes:
+
+        - receiver: critical-alerts
+          matchers:
+            - severity="critical"
+
+        - receiver: warning-alerts
+          matchers:
+            - severity="warning"
+
+    receivers:
+
+      - name: default-receiver
+
+      - name: critical-alerts
+
+        email_configs:
+
+          - to: devops-team@example.com
+
+            from: alertmanager@example.com
+
+            smarthost: smtp.example.com:587
+
+            auth_username: alertmanager@example.com
+
+            auth_identity: alertmanager@example.com
+
+            auth_password: YOUR_PASSWORD
+
+            require_tls: true
+
+            send_resolved: true
+
+      - name: warning-alerts
+
+        slack_configs:
+
+          - api_url: YOUR_SLACK_WEBHOOK_URL
+
+            channel: "#alerts"
+
+            send_resolved: true
+
+    inhibit_rules:
+
+      - source_matchers:
+          - severity="critical"
+
+        target_matchers:
+          - severity="warning"
+
+        equal:
+          - alertname
+          - namespace
