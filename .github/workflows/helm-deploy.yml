@@ -1,0 +1,90 @@
+name: Helm Deploy
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "charts/**"
+
+env:
+  NAMESPACE: monitoring
+
+jobs:
+  helm-deploy:
+    name: Deploy Helm Charts
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: latest
+
+      - name: Configure Kubeconfig
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Verify Cluster
+        run: |
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Create Namespace
+        run: |
+          kubectl create namespace $NAMESPACE \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Deploy Prometheus
+        run: |
+          helm upgrade --install prometheus ./charts/prometheus \
+            --namespace $NAMESPACE \
+            --create-namespace \
+            --wait
+
+      - name: Deploy Grafana
+        run: |
+          helm upgrade --install grafana ./charts/grafana \
+            --namespace $NAMESPACE \
+            --wait
+
+      - name: Deploy Loki
+        run: |
+          helm upgrade --install loki ./charts/loki \
+            --namespace $NAMESPACE \
+            --wait
+
+      - name: Deploy Alertmanager
+        run: |
+          helm upgrade --install alertmanager ./charts/alertmanager \
+            --namespace $NAMESPACE \
+            --wait
+
+      - name: Verify Helm Releases
+        run: |
+          helm list -n $NAMESPACE
+
+      - name: Verify Kubernetes Resources
+        run: |
+          kubectl get pods -n $NAMESPACE
+          kubectl get svc -n $NAMESPACE
+          kubectl get ingress -n $NAMESPACE
+
+      - name: Deployment Summary
+        run: |
+          echo "=================================="
+          echo "Helm deployment completed successfully."
+          echo "=================================="
