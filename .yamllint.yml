@@ -5,6 +5,7 @@ ignore: |
   charts/**/templates/**
 
 rules:
+
   line-length:
     max: 120
 
@@ -17,5 +18,4 @@ rules:
   empty-lines:
     max: 2
 
-  truthy:
-    disable: true
+  truthy: disable
