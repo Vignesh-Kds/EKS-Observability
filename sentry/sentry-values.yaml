@@ -1,10 +1,9 @@
 # Sentry Helm Values
 # Project: EKS Multi-Service Application
-
+---
 global:
 
   domain: sentry.example.com
-
 
   smtp:
 
@@ -13,17 +12,13 @@ global:
     host: smtp.example.com
 
     port: 587
-
-
 #############################################
 # Sentry Web Service
 #############################################
-
 web:
 
   replicaCount: 2
 
-
   resources:
 
     requests:
@@ -32,24 +27,18 @@ web:
 
       memory: 1Gi
 
-
     limits:
 
       cpu: 1
 
       memory: 2Gi
-
-
-
 #############################################
 # Background Workers
 #############################################
-
 worker:
 
   replicaCount: 2
 
-
   resources:
 
     requests:
@@ -58,41 +47,30 @@ worker:
 
       memory: 1Gi
 
-
     limits:
 
       cpu: 1
 
       memory: 2Gi
-
-
-
 #############################################
 # Cron Jobs
 #############################################
-
 cron:
 
   enabled: true
 
-
-
 #############################################
 # PostgreSQL Database
 #############################################
-
 postgresql:
 
   enabled: true
-
 
   auth:
 
     database: sentry
 
     username: sentry
-
-
 
   primary:
 
@@ -102,16 +80,12 @@ postgresql:
 
       size: 50Gi
 
-
-
 #############################################
 # Redis
 #############################################
-
 redis:
 
   enabled: true
-
 
   master:
 
@@ -120,9 +94,6 @@ redis:
       enabled: true
 
       size: 10Gi
-
-
-
 #############################################
 # Kafka
 #############################################
@@ -131,25 +102,18 @@ kafka:
 
   enabled: true
 
-
   persistence:
 
     enabled: true
 
     size: 50Gi
 
-
-
 #############################################
 # Zookeeper
 #############################################
-
 zookeeper:
 
   enabled: true
-
-
-
 #############################################
 # ClickHouse
 #############################################
@@ -158,32 +122,22 @@ clickhouse:
 
   enabled: true
 
-
   persistence:
 
     enabled: true
 
     size: 100Gi
-
-
-
 #############################################
 # Ingress Configuration
 #############################################
-
 ingress:
 
   enabled: true
-
-
   ingressClassName: nginx
-
 
   annotations:
 
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-
-
 
   hosts:
 
@@ -195,8 +149,6 @@ ingress:
 
           pathType: Prefix
 
-
-
   tls:
 
     - secretName: sentry-tls
@@ -204,46 +156,30 @@ ingress:
       hosts:
 
         - sentry.example.com
-
-
-
 #############################################
 # Security
 #############################################
-
 securityContext:
 
   runAsNonRoot: true
-
-
-
 #############################################
 # Kubernetes Resources
 #############################################
-
 serviceAccount:
 
   create: true
-
-
-
 #############################################
 # Monitoring
 #############################################
-
 metrics:
 
   enabled: true
-
 
 serviceMonitor:
 
   enabled: true
 
-
   namespace: monitoring
-
-
 
 #############################################
 # External Secret Integration
@@ -252,8 +188,6 @@ serviceMonitor:
 secrets:
 
   existingSecret: sentry-secret
-
-
 
 #############################################
 # Environment
@@ -265,12 +199,9 @@ env:
 
   SENTRY_LOG_LEVEL: INFO
 
-
-
 #############################################
 # Backup
 #############################################
-
 backup:
 
   enabled: true

@@ -1,19 +1,14 @@
 # Sentry Configuration
 # Project: EKS Multi-Service Application
-
+---
 sentry:
-
   # Environment
   environment: production
-
-
   # Release Version
   # Usually populated from CI/CD pipeline
   release:
     enabled: true
     version: "${APP_VERSION}"
-
-
   # Error Tracking
   errorTracking:
 
@@ -22,7 +17,6 @@ sentry:
     captureExceptions: true
 
     captureUnhandledRejections: true
-
 
   # Performance Monitoring
 
@@ -34,7 +28,6 @@ sentry:
 
     profilesSampleRate: 0.1
 
-
   # Session Tracking
 
   sessions:
@@ -42,7 +35,6 @@ sentry:
     enabled: true
 
     autoSessionTracking: true
-
 
   # Logging Integration
 
@@ -54,8 +46,6 @@ sentry:
 
       - error
       - warn
-
-
 
   # Source Maps
 
@@ -75,8 +65,6 @@ sentry:
 
         - node_modules
 
-
-
   # Alert Configuration
 
   alerts:
@@ -93,7 +81,6 @@ sentry:
 
         severity: critical
 
-
       - name: Performance Degradation
 
         condition:
@@ -101,8 +88,6 @@ sentry:
           transaction_duration_ms: 2000
 
         severity: warning
-
-
 
   # Data Privacy
 
@@ -119,8 +104,6 @@ sentry:
       - authorization
 
       - cookie
-
-
 
   # Kubernetes Metadata
 

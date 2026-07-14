@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: ConfigMap
 
@@ -9,3 +10,4 @@ metadata:
 data:
   POSTGRES_DB: {{ .Values.config.POSTGRES_DB | quote }}
   PGDATA: {{ .Values.config.PGDATA | quote }}
+
