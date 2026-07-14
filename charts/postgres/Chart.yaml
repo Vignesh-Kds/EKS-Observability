@@ -1,5 +1,5 @@
+---
 apiVersion: v2
-
 name: postgres
 description: A Helm chart for deploying PostgreSQL on Kubernetes
 
@@ -25,3 +25,4 @@ sources:
 maintainers:
   - name: Vignesh
     email: vigneshawss@gmail.com
+    
