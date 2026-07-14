@@ -1,7 +1,7 @@
 ---
 name: CI Pipeline
 
-"on":
+on:
   pull_request:
     branches:
       - main
@@ -12,51 +12,103 @@ name: CI Pipeline
       - main
       - master
 
+
 jobs:
+
   validate:
     name: Validate Kubernetes Manifests
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: latest
 
-      - name: Validate YAML Files
-        run: |
-          find . -type f \
-            \( -name "*.yaml" -o -name "*.yml" \) \
-            -not -path "./.github/*" \
-            -exec kubectl apply \
-              --dry-run=client \
-              --validate=false \
-              -f {} \;
 
-  lint:
+      - name: Validate Kubernetes YAML
+        run: |
+          find manifests/ \
+            -type f \
+            \( -name "*.yaml" -o -name "*.yml" \) \
+            -exec kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f {} \;
+
+
+
+  yaml-lint:
     name: YAML Lint
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
+      - name: Install yamllint
+        run: |
+          pip install yamllint
+
+
       - name: Run yamllint
-        uses: ibiqlik/action-yamllint@v3
+        run: |
+          yamllint -c .yamllint.yml .
+
+
+
+  helm-lint:
+    name: Helm Chart Lint
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: latest
+
+
+      - name: Run Helm Lint Frontend
+        run: |
+          helm lint charts/frontend
+
+
+      - name: Run Helm Lint Backend
+        run: |
+          helm lint charts/backend
+
+
+      - name: Run Helm Lint PostgreSQL
+        run: |
+          helm lint charts/postgres
+
+
 
   security:
     name: Kubernetes Security Scan
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
       - name: Run Trivy Config Scan
         uses: aquasecurity/trivy-action@0.33.1
+
         with:
           scan-type: config
           scan-ref: .
@@ -64,18 +116,25 @@ jobs:
           exit-code: 1
           severity: HIGH,CRITICAL
 
+
+
   shellcheck:
     name: Validate Shell Scripts
     runs-on: ubuntu-latest
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
+
         with:
           scandir: ./scripts
+
+
 
   completed:
     name: CI Status
@@ -83,11 +142,14 @@ jobs:
 
     needs:
       - validate
-      - lint
+      - yaml-lint
+      - helm-lint
       - security
       - shellcheck
 
+
     steps:
+
       - name: Success
         run: |
           echo "All CI checks passed successfully."
