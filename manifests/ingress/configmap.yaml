@@ -1,9 +1,11 @@
 ---
 apiVersion: v1
 kind: ConfigMap
+
 metadata:
   name: ingress-nginx-controller
   namespace: ingress-nginx
+
 data:
   allow-snippet-annotations: "false"
   enable-real-ip: "true"
@@ -34,4 +36,3 @@ data:
   keep-alive: "75"
 
   worker-processes: "auto"
-  

@@ -1,9 +1,11 @@
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
+
 metadata:
   name: app-role
   namespace: default
+
 rules:
   # Read pods and services
   - apiGroups:
@@ -17,6 +19,7 @@ rules:
       - get
       - list
       - watch
+
   # Manage deployments
   - apiGroups:
       - apps
@@ -31,6 +34,7 @@ rules:
       - update
       - patch
       - delete
+
   # Read application events
   - apiGroups:
       - ""
@@ -40,6 +44,7 @@ rules:
       - get
       - list
       - watch
+
   # Manage jobs
   - apiGroups:
       - batch
@@ -52,4 +57,3 @@ rules:
       - create
       - update
       - delete
-      

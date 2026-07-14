@@ -1,198 +1,126 @@
+---
 # Prometheus Helm Values
 # Production Kubernetes Monitoring Configuration
----
-prometheus:
 
+prometheus:
   enabled: true
 
   prometheusSpec:
-
     replicas: 2
 
     retention: 15d
-
     retentionSize: 50GB
-
 
     # Persistent storage
     storageSpec:
-
       volumeClaimTemplate:
-
         spec:
-
           storageClassName: gp3
 
           accessModes:
             - ReadWriteOnce
 
           resources:
-
             requests:
-
               storage: 50Gi
-
 
     # Resource allocation
     resources:
-
       requests:
-
         cpu: 500m
-
         memory: 2Gi
 
-
       limits:
-
         cpu: 2
-
         memory: 4Gi
-
 
     # Scrape interval
     scrapeInterval: 30s
-
     evaluationInterval: 30s
-
 
     # Enable service discovery
     serviceMonitorSelectorNilUsesHelmValues: false
-
     podMonitorSelectorNilUsesHelmValues: false
 
-
     # External labels for federation
-
     externalLabels:
-
       cluster: production-eks
 
 
 # Alertmanager configuration
-
 alertmanager:
-
   enabled: true
 
-
   alertmanagerSpec:
-
     replicas: 3
 
-
     storage:
-
       volumeClaimTemplate:
-
         spec:
-
           storageClassName: gp3
 
           accessModes:
-
             - ReadWriteOnce
 
-
           resources:
-
             requests:
-
               storage: 20Gi
 
 
 # Grafana configuration
-
 grafana:
-
   enabled: true
 
-
   persistence:
-
     enabled: true
-
     storageClassName: gp3
-
     size: 10Gi
 
-
   dashboards:
-
     enabled: true
 
-
   sidecar:
-
     dashboards:
-
       enabled: true
 
-
     datasources:
-
       enabled: true
 
 
 # kube-state-metrics
-
 kube-state-metrics:
-
   enabled: true
 
 
 # Node exporter
-
 nodeExporter:
-
   enabled: true
 
 
 # Prometheus Operator
-
 prometheusOperator:
-
   enabled: true
 
-
   resources:
-
     requests:
-
       cpu: 100m
-
       memory: 256Mi
 
-
     limits:
-
       cpu: 500m
-
       memory: 512Mi
 
 
 # Default Kubernetes monitoring rules
-
 defaultRules:
-
   create: true
 
-
   rules:
-
     alertmanager: true
-
     etcd: true
-
     kubernetesApps: true
-
     kubernetesResources: true
-
     kubeApiserver: true
-
     kubeScheduler: true
-
     node: true
-
     prometheus: true
-    

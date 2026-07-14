@@ -10,30 +10,18 @@ metadata:
     release: prometheus
 
 spec:
-
   # Select backend service
   selector:
-
     matchLabels:
-
       app: backend
-
 
   # Namespace where backend service exists
   namespaceSelector:
-
     matchNames:
-
       - production
 
-
   endpoints:
-
     - port: metrics
-
       path: /metrics
-
       interval: 30s
-
       scrapeTimeout: 10s
-      

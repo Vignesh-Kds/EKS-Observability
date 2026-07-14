@@ -9,32 +9,19 @@ metadata:
   labels:
     release: prometheus
 
-
 spec:
-
   # Select frontend Kubernetes Service
   selector:
-
     matchLabels:
-
       app: frontend
-
 
   # Frontend namespace
   namespaceSelector:
-
     matchNames:
-
       - production
 
-
   endpoints:
-
     - port: metrics
-
       path: /metrics
-
       interval: 30s
-
       scrapeTimeout: 10s
-      

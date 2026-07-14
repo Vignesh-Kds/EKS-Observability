@@ -1,14 +1,17 @@
 ---
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
   name: ingress-nginx-controller
   namespace: ingress-nginx
   labels:
     app.kubernetes.io/name: ingress-nginx
     app.kubernetes.io/component: controller
+
 spec:
   replicas: 2
+
   selector:
     matchLabels:
       app.kubernetes.io/name: ingress-nginx
@@ -103,4 +106,3 @@ spec:
             secretName: ingress-nginx-admission
 
       terminationGracePeriodSeconds: 300
-      

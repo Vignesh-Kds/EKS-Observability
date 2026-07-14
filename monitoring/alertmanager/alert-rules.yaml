@@ -5,29 +5,22 @@ kind: PrometheusRule
 metadata:
   name: application-alert-rules
   namespace: monitoring
-
   labels:
     release: prometheus
 
 spec:
-
   groups:
-
     - name: kubernetes-alerts
-
       rules:
-
         # Pod CrashLoopBackOff
         - alert: PodCrashLooping
-
           expr: |
-            rate(kube_pod_container_status_restarts_total[5m]) > 0
-
+            increase(
+              kube_pod_container_status_restarts_total[5m]
+            ) > 3
           for: 5m
-
           labels:
             severity: critical
-
           annotations:
             summary: "Pod is restarting repeatedly"
             description: |
@@ -35,18 +28,13 @@ spec:
               in namespace {{ $labels.namespace }}
               is restarting frequently.
 
-
         # Pod Not Ready
         - alert: PodNotReady
-
           expr: |
             kube_pod_status_ready{condition="false"} == 1
-
           for: 10m
-
           labels:
             severity: warning
-
           annotations:
             summary: "Pod is not ready"
             description: |
@@ -54,81 +42,145 @@ spec:
               in namespace {{ $labels.namespace }}
               has been unhealthy for more than 10 minutes.
 
-
         # High CPU Usage
         - alert: HighCPUUsage
-
           expr: |
-            100 -
-            (avg by(instance)
-            (rate(node_cpu_seconds_total{
-            mode="idle"
-            }[5m])) * 100)
-            > 85
-
+            (
+              100 -
+              (
+                avg by (instance) (
+                  rate(
+                    node_cpu_seconds_total{
+                      mode="idle"
+                    }[5m]
+                  )
+                ) * 100
+              )
+            ) > 85
           for: 10m
-
           labels:
             severity: warning
-
           annotations:
             summary: "High CPU usage detected"
             description: |
               CPU usage on {{ $labels.instance }}
               is above 85%.
 
-
         # High Memory Usage
         - alert: HighMemoryUsage
-
           expr: |
             (
               node_memory_MemAvailable_bytes
               /
               node_memory_MemTotal_bytes
             ) < 0.15
-
           for: 10m
-
           labels:
             severity: warning
-
           annotations:
             summary: "High memory usage"
             description: |
               Available memory is below 15%
               on {{ $labels.instance }}.
 
-
         # Node Down
         - alert: NodeDown
-
           expr: |
             up{job="node-exporter"} == 0
-
           for: 5m
-
           labels:
             severity: critical
-
           annotations:
             summary: "Node is unreachable"
             description: |
-              Kubernetes node {{ $labels.instance }}
+              Kubernetes node
+              {{ $labels.instance }}
               is down.
 
-
-        # API Server Down
+        # Kubernetes API Server Down
         - alert: KubernetesAPIServerDown
-
           expr: |
             up{job="apiserver"} == 0
-
           for: 5m
-
           labels:
             severity: critical
-
           annotations:
             summary: "Kubernetes API server unavailable"
-            
+            description: |
+              Kubernetes API server
+              {{ $labels.instance }}
+              is unreachable.
+
+        # PersistentVolume Almost Full
+        - alert: PersistentVolumeUsageHigh
+          expr: |
+            (
+              kubelet_volume_stats_available_bytes
+              /
+              kubelet_volume_stats_capacity_bytes
+            ) < 0.15
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PersistentVolume usage is high"
+            description: |
+              Less than 15% storage
+              is available on volume
+              {{ $labels.persistentvolumeclaim }}.
+
+        # Deployment Replicas Mismatch
+        - alert: DeploymentReplicasMismatch
+          expr: |
+            kube_deployment_status_replicas_available
+            <
+            kube_deployment_spec_replicas
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Deployment has unavailable replicas"
+            description: |
+              Deployment
+              {{ $labels.deployment }}
+              in namespace
+              {{ $labels.namespace }}
+              does not have all replicas available.
+
+        # High Pod Restart Count
+        - alert: HighPodRestartCount
+          expr: |
+            increase(
+              kube_pod_container_status_restarts_total[30m]
+            ) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Pod restart count is high"
+            description: |
+              Pod {{ $labels.pod }}
+              has restarted more than
+              five times in the last
+              30 minutes.
+
+        # Container OOMKilled
+        - alert: ContainerOOMKilled
+          expr: |
+            increase(
+              kube_pod_container_status_last_terminated_reason{
+                reason="OOMKilled"
+              }[5m]
+            ) > 0
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Container was OOMKilled"
+            description: |
+              Container
+              {{ $labels.container }}
+              in pod
+              {{ $labels.pod }}
+              was terminated because
+              it ran out of memory.
