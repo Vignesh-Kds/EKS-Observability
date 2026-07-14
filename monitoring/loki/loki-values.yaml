@@ -1,5 +1,4 @@
-# Loki Helm values for Kubernetes production deployment
-
+--- # Loki Helm values for Kubernetes production deployment
 loki:
 
   auth_enabled: false
@@ -142,3 +141,4 @@ podSecurityContext:
   runAsNonRoot: true
 
   fsGroup: 10001
+  

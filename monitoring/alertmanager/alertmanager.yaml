@@ -1,3 +1,4 @@
+---
 apiVersion: v1
 kind: ConfigMap
 
@@ -78,3 +79,4 @@ data:
         equal:
           - alertname
           - namespace
+          

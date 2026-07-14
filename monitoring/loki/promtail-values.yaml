@@ -1,6 +1,6 @@
 # Promtail Helm Values
 # Kubernetes container log collector for Loki
-
+---
 config:
 
   clients:

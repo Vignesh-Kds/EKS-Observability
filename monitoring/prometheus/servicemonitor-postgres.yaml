@@ -1,3 +1,4 @@
+---
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 
@@ -35,3 +36,4 @@ spec:
       interval: 30s
 
       scrapeTimeout: 10s
+      
