@@ -1,7 +1,7 @@
 ---
 name: CD Pipeline
 
-on:
+"on":
   push:
     branches:
       - main
@@ -33,9 +33,10 @@ jobs:
 
       - name: Configure Kubeconfig
         run: |
-          mkdir -p $HOME/.kube
-          echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > $HOME/.kube/config
-          chmod 600 $HOME/.kube/config
+          mkdir -p "$HOME/.kube"
+          echo "${{ secrets.KUBE_CONFIG }}" |
+            base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
 
       - name: Verify Cluster Connectivity
         run: |
@@ -44,7 +45,9 @@ jobs:
 
       - name: Create Namespace
         run: |
-          kubectl create namespace $NAMESPACE --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create namespace "$NAMESPACE" \
+            --dry-run=client \
+            -o yaml | kubectl apply -f -
 
       - name: Deploy Monitoring Stack
         run: |
@@ -52,19 +55,35 @@ jobs:
 
       - name: Wait for Deployments
         run: |
-          kubectl rollout status deployment/prometheus -n $NAMESPACE --timeout=300s || true
-          kubectl rollout status deployment/grafana -n $NAMESPACE --timeout=300s || true
-          kubectl rollout status deployment/loki -n $NAMESPACE --timeout=300s || true
-          kubectl rollout status deployment/alertmanager -n $NAMESPACE --timeout=300s || true
+          kubectl rollout status \
+            deployment/prometheus \
+            -n "$NAMESPACE" \
+            --timeout=300s || true
+
+          kubectl rollout status \
+            deployment/grafana \
+            -n "$NAMESPACE" \
+            --timeout=300s || true
+
+          kubectl rollout status \
+            deployment/loki \
+            -n "$NAMESPACE" \
+            --timeout=300s || true
+
+          kubectl rollout status \
+            deployment/alertmanager \
+            -n "$NAMESPACE" \
+            --timeout=300s || true
 
       - name: Verify Resources
         run: |
-          kubectl get pods -n $NAMESPACE
-          kubectl get svc -n $NAMESPACE
-          kubectl get ingress -n $NAMESPACE
+          kubectl get pods -n "$NAMESPACE"
+          kubectl get svc -n "$NAMESPACE"
+          kubectl get ingress -n "$NAMESPACE"
 
       - name: Deployment Summary
         run: |
           echo "==================================="
           echo "Deployment completed successfully."
           echo "==================================="
+
