@@ -2,6 +2,7 @@
 extends: default
 
 ignore: |
+  .github/
   charts/**/templates/**
 
 rules:
