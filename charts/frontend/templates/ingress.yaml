@@ -1,5 +1,6 @@
 ---
 {{- if .Values.ingress.enabled }}
+
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 
@@ -7,6 +8,7 @@ metadata:
   name: {{ include "frontend.fullname" . }}
   labels:
     {{- include "frontend.labels" . | nindent 4 }}
+
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 
@@ -26,9 +28,11 @@ spec:
                   number: {{ .Values.service.port }}
 
 {{- if .Values.ingress.tls.enabled }}
+
   tls:
     - hosts:
         - {{ .Values.ingress.host }}
       secretName: {{ .Values.ingress.tls.secretName }}
+
 {{- end }}
 {{- end }}

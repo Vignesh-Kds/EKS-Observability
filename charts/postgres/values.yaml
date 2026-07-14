@@ -1,3 +1,4 @@
+---
 # Number of PostgreSQL replicas
 # For production with StatefulSet, keep this as 1 unless using PostgreSQL replication.
 replicaCount: 1
@@ -16,7 +17,6 @@ resources:
   requests:
     cpu: 250m
     memory: 512Mi
-
   limits:
     cpu: "1"
     memory: 1Gi
@@ -27,13 +27,11 @@ config:
 
 secret:
   enabled: true
-
   postgresUser: appuser
   postgresPassword: change-me
 
 persistence:
   enabled: true
-
   storageClass: gp3
   accessMode: ReadWriteOnce
   size: 20Gi
@@ -42,7 +40,6 @@ serviceAccount:
   create: true
   name: ""
   automount: false
-
   annotations: {}
 
 nodeSelector: {}

@@ -5,13 +5,13 @@ kind: Service
 metadata:
   name: {{ include "postgres.fullname" . }}
   labels:
-{{ include "postgres.labels" . | nindent 4 }}
+    {{- include "postgres.labels" . | nindent 4 }}
 
 spec:
   type: {{ .Values.service.type }}
 
   selector:
-{{ include "postgres.selectorLabels" . | nindent 4 }}
+    {{- include "postgres.selectorLabels" . | nindent 4 }}
 
   ports:
     - name: postgres
