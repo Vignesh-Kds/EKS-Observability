@@ -20,22 +20,18 @@ echo ""
 echo "Cleaning Docker Resources..."
 
 # Remove stopped containers
-
 docker container prune -f
 
 
 # Remove unused images
-
 docker image prune -f
 
 
 # Remove unused networks
-
 docker network prune -f
 
 
 # Remove unused volumes
-
 docker volume prune -f
 
 
@@ -51,7 +47,6 @@ echo "Cleaning Kubernetes temporary resources..."
 
 
 # Delete completed jobs
-
 kubectl delete jobs \
 --all \
 -n default \
@@ -59,7 +54,6 @@ kubectl delete jobs \
 
 
 # Delete failed pods
-
 kubectl delete pods \
 --field-selector=status.phase=Failed \
 --all-namespaces \
@@ -79,20 +73,17 @@ echo "Checking Helm releases..."
 helm list --all-namespaces
 
 
-read -p "Remove failed Helm releases? (y/n): " HELM_CLEAN
+read -r -p "Remove failed Helm releases? (y/n): " HELM_CLEAN
 
 
 if [ "$HELM_CLEAN" == "y" ]
 then
 
-    helm list \
-    --all-namespaces \
-    --failed \
-    -q | while read release
+    while read -r release
     do
         echo "Removing Helm release: $release"
         helm uninstall "$release" --all-namespaces || true
-    done
+    done < <(helm list --all-namespaces --failed -q)
 
 fi
 

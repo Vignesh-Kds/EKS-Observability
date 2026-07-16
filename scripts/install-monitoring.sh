@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 #############################################
 # Monitoring Stack Installation Script
@@ -8,8 +8,10 @@ set -e
 #############################################
 
 MONITORING_NAMESPACE="monitoring"
+
 PROMETHEUS_RELEASE="kube-prometheus-stack"
 LOKI_RELEASE="loki"
+PROMTAIL_RELEASE="promtail"
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
@@ -25,9 +27,9 @@ echo "===================================="
 
 for tool in kubectl helm
 do
-    if ! command -v $tool &> /dev/null
+    if ! command -v "${tool}" &> /dev/null
     then
-        echo "$tool is not installed"
+        echo "ERROR: ${tool} is not installed"
         exit 1
     fi
 done
@@ -40,13 +42,14 @@ done
 echo ""
 echo "Checking Kubernetes Cluster..."
 
-kubectl cluster-info > /dev/null 2>&1 || {
-
-    echo "Unable to connect to Kubernetes"
+if ! kubectl cluster-info > /dev/null 2>&1
+then
+    echo "ERROR: Unable to connect to Kubernetes cluster"
     exit 1
+fi
 
-}
 
+echo "Kubernetes connection successful"
 
 
 #############################################
@@ -56,7 +59,8 @@ kubectl cluster-info > /dev/null 2>&1 || {
 echo ""
 echo "Creating Monitoring Namespace..."
 
-kubectl create namespace ${MONITORING_NAMESPACE} \
+
+kubectl create namespace "${MONITORING_NAMESPACE}" \
 --dry-run=client \
 -o yaml | kubectl apply -f -
 
@@ -71,11 +75,13 @@ echo "Adding Helm Repositories..."
 
 
 helm repo add prometheus-community \
-https://prometheus-community.github.io/helm-charts
+https://prometheus-community.github.io/helm-charts \
+|| true
 
 
 helm repo add grafana \
-https://grafana.github.io/helm-charts
+https://grafana.github.io/helm-charts \
+|| true
 
 
 helm repo update
@@ -83,19 +89,20 @@ helm repo update
 
 
 #############################################
-# Install Prometheus + Grafana + Alertmanager
+# Install Prometheus Stack
 #############################################
 
 echo ""
-echo "Installing Prometheus Stack..."
+echo "Installing Prometheus + Grafana + Alertmanager..."
 
 
-helm upgrade --install ${PROMETHEUS_RELEASE} \
+helm upgrade --install "${PROMETHEUS_RELEASE}" \
 prometheus-community/kube-prometheus-stack \
-\
---namespace ${MONITORING_NAMESPACE} \
-\
--f ${PROJECT_ROOT}/monitoring/prometheus/prometheus-values.yaml
+--namespace "${MONITORING_NAMESPACE}" \
+--create-namespace \
+-f "${PROJECT_ROOT}/monitoring/prometheus/prometheus-values.yaml" \
+--wait \
+--timeout 10m
 
 
 
@@ -104,15 +111,15 @@ prometheus-community/kube-prometheus-stack \
 #############################################
 
 echo ""
-echo "Installing Loki Stack..."
+echo "Installing Loki..."
 
 
-helm upgrade --install ${LOKI_RELEASE} \
+helm upgrade --install "${LOKI_RELEASE}" \
 grafana/loki-stack \
-\
---namespace ${MONITORING_NAMESPACE} \
-\
--f ${PROJECT_ROOT}/monitoring/loki/loki-values.yaml
+--namespace "${MONITORING_NAMESPACE}" \
+-f "${PROJECT_ROOT}/monitoring/loki/loki-values.yaml" \
+--wait \
+--timeout 10m
 
 
 
@@ -124,12 +131,12 @@ echo ""
 echo "Installing Promtail..."
 
 
-helm upgrade --install promtail \
+helm upgrade --install "${PROMTAIL_RELEASE}" \
 grafana/promtail \
-\
---namespace ${MONITORING_NAMESPACE} \
-\
--f ${PROJECT_ROOT}/monitoring/loki/promtail-values.yaml
+--namespace "${MONITORING_NAMESPACE}" \
+-f "${PROJECT_ROOT}/monitoring/loki/promtail-values.yaml" \
+--wait \
+--timeout 10m
 
 
 
@@ -142,18 +149,18 @@ echo "Applying ServiceMonitors..."
 
 
 kubectl apply \
--f ${PROJECT_ROOT}/monitoring/prometheus/servicemonitor-backend.yaml \
--n ${MONITORING_NAMESPACE}
+-f "${PROJECT_ROOT}/monitoring/prometheus/servicemonitor-backend.yaml" \
+-n "${MONITORING_NAMESPACE}"
 
 
 kubectl apply \
--f ${PROJECT_ROOT}/monitoring/prometheus/servicemonitor-frontend.yaml \
--n ${MONITORING_NAMESPACE}
+-f "${PROJECT_ROOT}/monitoring/prometheus/servicemonitor-frontend.yaml" \
+-n "${MONITORING_NAMESPACE}"
 
 
 kubectl apply \
--f ${PROJECT_ROOT}/monitoring/prometheus/servicemonitor-postgres.yaml \
--n ${MONITORING_NAMESPACE}
+-f "${PROJECT_ROOT}/monitoring/prometheus/servicemonitor-postgres.yaml" \
+-n "${MONITORING_NAMESPACE}"
 
 
 
@@ -166,13 +173,13 @@ echo "Applying Alert Rules..."
 
 
 kubectl apply \
--f ${PROJECT_ROOT}/monitoring/prometheus/prometheusrule.yaml \
--n ${MONITORING_NAMESPACE}
+-f "${PROJECT_ROOT}/monitoring/prometheus/prometheusrule.yaml" \
+-n "${MONITORING_NAMESPACE}"
 
 
 
 #############################################
-# Wait For Components
+# Wait For Monitoring Pods
 #############################################
 
 echo ""
@@ -182,8 +189,8 @@ echo "Waiting For Monitoring Pods..."
 kubectl wait \
 --for=condition=Ready pod \
 --all \
--n ${MONITORING_NAMESPACE} \
---timeout=600s || true
+-n "${MONITORING_NAMESPACE}" \
+--timeout=600s
 
 
 
@@ -192,35 +199,43 @@ kubectl wait \
 #############################################
 
 echo ""
+echo "===================================="
 echo "Monitoring Pods"
+echo "===================================="
 
 kubectl get pods \
--n ${MONITORING_NAMESPACE}
+-n "${MONITORING_NAMESPACE}"
 
 
 
 echo ""
+echo "===================================="
 echo "Monitoring Services"
+echo "===================================="
 
 kubectl get svc \
--n ${MONITORING_NAMESPACE}
+-n "${MONITORING_NAMESPACE}"
 
 
 
 echo ""
+echo "===================================="
 echo "Prometheus Resources"
+echo "===================================="
 
 kubectl get prometheus \
--n ${MONITORING_NAMESPACE}
+-n "${MONITORING_NAMESPACE}"
 
 
 
 echo ""
-echo "Grafana Access"
+echo "===================================="
+echo "Grafana Service"
+echo "===================================="
 
 kubectl get svc \
--n ${MONITORING_NAMESPACE} \
-| grep grafana || true
+-n "${MONITORING_NAMESPACE}" \
+| grep grafana || echo "Grafana service not found"
 
 
 

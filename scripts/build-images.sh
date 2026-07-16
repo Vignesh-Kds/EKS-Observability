@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 #############################################
 # Build Docker Images Script
@@ -9,8 +9,9 @@ set -e
 
 # Configuration
 
-REGISTRY="your-dockerhub-user"
-VERSION=${1:-latest}
+REGISTRY="vigneshawss"
+
+VERSION=${1:-v1.0.0}
 
 FRONTEND_IMAGE="${REGISTRY}/frontend:${VERSION}"
 BACKEND_IMAGE="${REGISTRY}/backend:${VERSION}"
@@ -30,15 +31,16 @@ echo "===================================="
 
 if ! command -v docker &> /dev/null
 then
-    echo "Docker is not installed"
+    echo "ERROR: Docker is not installed"
     exit 1
 fi
 
 
-docker info > /dev/null 2>&1 || {
-    echo "Docker daemon is not running"
+if ! docker info > /dev/null 2>&1
+then
+    echo "ERROR: Docker daemon is not running"
     exit 1
-}
+fi
 
 
 #############################################
@@ -50,9 +52,10 @@ echo "Building Backend Image..."
 
 cd "${PROJECT_ROOT}/backend"
 
+
 docker build \
--t "${BACKEND_IMAGE}" \
-.
+    --tag "${BACKEND_IMAGE}" \
+    .
 
 
 echo "Backend image created:"
@@ -68,9 +71,10 @@ echo "Building Frontend Image..."
 
 cd "${PROJECT_ROOT}/frontend"
 
+
 docker build \
--t "${FRONTEND_IMAGE}" \
-.
+    --tag "${FRONTEND_IMAGE}" \
+    .
 
 
 echo "Frontend image created:"
@@ -84,31 +88,66 @@ echo "${FRONTEND_IMAGE}"
 echo ""
 echo "Available Images"
 
-docker images | grep -E "frontend|backend"
+docker images | grep -E "frontend|backend" || true
 
 
 #############################################
-# Push Images (Optional)
+# Security Scan (Optional)
 #############################################
 
-read -p "Do you want to push images? (y/n): " PUSH
+read -r -p "Run Trivy image scan? (y/n): " SCAN
 
 
-if [ "$PUSH" == "y" ]
+if [[ "${SCAN}" == "y" ]]
 then
 
     echo ""
-    echo "Logging into Registry..."
+    echo "Scanning Backend Image..."
+
+    trivy image \
+        --severity HIGH,CRITICAL \
+        "${BACKEND_IMAGE}"
+
+
+    echo ""
+    echo "Scanning Frontend Image..."
+
+    trivy image \
+        --severity HIGH,CRITICAL \
+        "${FRONTEND_IMAGE}"
+
+else
+
+    echo ""
+    echo "Skipping Trivy scan"
+
+fi
+
+
+#############################################
+# Push Images
+#############################################
+
+read -r -p "Push images to Docker Hub? (y/n): " PUSH
+
+
+if [[ "${PUSH}" == "y" ]]
+then
+
+    echo ""
+    echo "Logging into Docker Hub..."
 
     docker login
 
 
-    echo "Pushing Backend..."
+    echo ""
+    echo "Pushing Backend Image..."
 
     docker push "${BACKEND_IMAGE}"
 
 
-    echo "Pushing Frontend..."
+    echo ""
+    echo "Pushing Frontend Image..."
 
     docker push "${FRONTEND_IMAGE}"
 
@@ -124,7 +163,16 @@ else
 fi
 
 
+#############################################
+# Completed
+#############################################
+
 echo ""
 echo "===================================="
 echo "Build Completed Successfully"
 echo "===================================="
+
+echo ""
+echo "Images:"
+echo "${BACKEND_IMAGE}"
+echo "${FRONTEND_IMAGE}"

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -euo pipefail
 
 #############################################
 # Kubernetes Rollback Script
@@ -9,13 +9,17 @@ set -e
 
 NAMESPACE=${1:-production}
 RELEASE=${2:-backend}
+REVISION=${3:-}
+
+DEPLOYMENT=${4:-${RELEASE}}
 
 echo "===================================="
-echo "Starting Rollback"
+echo "Starting Helm Rollback"
 echo "===================================="
 
-echo "Namespace : ${NAMESPACE}"
-echo "Release   : ${RELEASE}"
+echo "Namespace  : ${NAMESPACE}"
+echo "Release    : ${RELEASE}"
+echo "Deployment : ${DEPLOYMENT}"
 
 
 #############################################
@@ -24,12 +28,13 @@ echo "Release   : ${RELEASE}"
 
 for tool in kubectl helm
 do
-    if ! command -v $tool &> /dev/null
+    if ! command -v "${tool}" &> /dev/null
     then
-        echo "$tool is not installed"
+        echo "ERROR: ${tool} is not installed"
         exit 1
     fi
 done
+
 
 
 #############################################
@@ -39,12 +44,16 @@ done
 echo ""
 echo "Checking Kubernetes Cluster..."
 
-kubectl cluster-info > /dev/null 2>&1 || {
 
-    echo "Unable to connect to Kubernetes cluster"
+if ! kubectl cluster-info >/dev/null 2>&1
+then
+    echo "ERROR: Unable to connect to Kubernetes cluster"
     exit 1
+fi
 
-}
+
+echo "Cluster connection successful"
+
 
 
 #############################################
@@ -54,23 +63,35 @@ kubectl cluster-info > /dev/null 2>&1 || {
 echo ""
 echo "Checking Helm Release..."
 
+
 if ! helm status "${RELEASE}" \
 -n "${NAMESPACE}" >/dev/null 2>&1
+
 then
 
-    echo "Helm release ${RELEASE} not found"
+    echo "ERROR: Helm release ${RELEASE} not found"
 
     exit 1
 
 fi
 
 
+
 #############################################
-# Display Release History
+# Display Current Status
 #############################################
 
 echo ""
-echo "Helm Release History"
+echo "Current Helm Release"
+
+helm status \
+"${RELEASE}" \
+-n "${NAMESPACE}"
+
+
+
+echo ""
+echo "Helm History"
 
 helm history \
 "${RELEASE}" \
@@ -79,21 +100,21 @@ helm history \
 
 
 #############################################
-# Rollback Version
+# Perform Rollback
 #############################################
 
-REVISION=${3:-}
-
-
-if [ -z "${REVISION}" ]
+if [[ -z "${REVISION}" ]]
 then
 
     echo ""
-    echo "Rolling back to previous version..."
+    echo "Rolling back to previous revision..."
 
     helm rollback \
     "${RELEASE}" \
-    -n "${NAMESPACE}"
+    -n "${NAMESPACE}" \
+    --wait \
+    --timeout 5m
+
 
 else
 
@@ -103,41 +124,46 @@ else
     helm rollback \
     "${RELEASE}" \
     "${REVISION}" \
-    -n "${NAMESPACE}"
+    -n "${NAMESPACE}" \
+    --wait \
+    --timeout 5m
 
 fi
 
 
 
 #############################################
-# Wait For Rollout
+# Verify Deployment Rollout
 #############################################
 
 echo ""
-echo "Waiting for rollout..."
+echo "Checking Deployment Rollout..."
 
 
 kubectl rollout status \
-deployment/${RELEASE} \
+deployment/"${DEPLOYMENT}" \
 -n "${NAMESPACE}" \
---timeout=300s || true
+--timeout=300s
 
 
 
 #############################################
-# Verify Deployment
+# Verify Pods
 #############################################
 
 echo ""
-echo "Deployment Status"
+echo "Pods After Rollback"
 
 kubectl get pods \
 -n "${NAMESPACE}"
 
 
-echo ""
 
-kubectl get deployments \
+echo ""
+echo "Deployment Status"
+
+kubectl get deployment \
+"${DEPLOYMENT}" \
 -n "${NAMESPACE}"
 
 
