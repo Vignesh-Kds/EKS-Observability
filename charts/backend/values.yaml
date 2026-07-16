@@ -1,10 +1,9 @@
 # Number of backend replicas
----
 replicaCount: 2
 
 image:
   repository: vigneshawss/backend
-  tag: latest
+  tag: "v1.0.0"
   pullPolicy: IfNotPresent
 
 service:
