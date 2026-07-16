@@ -12,7 +12,6 @@ on:
       - main
       - master
 
-
 jobs:
 
   validate:
@@ -20,16 +19,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
-
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: latest
-
 
       - name: Validate Kubernetes YAML
         run: |
@@ -41,100 +37,80 @@ jobs:
             --validate=false \
             -f {} \;
 
-
-
   yaml-lint:
     name: YAML Lint
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-
       - name: Install yamllint
         run: |
+          python -m pip install --upgrade pip
           pip install yamllint
-
 
       - name: Run yamllint
         run: |
           yamllint -c .yamllint.yml .
-
-
 
   helm-lint:
     name: Helm Chart Lint
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
-
 
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
           version: latest
 
-
       - name: Run Helm Lint Frontend
-        run: |
-          helm lint charts/frontend
-
+        run: helm lint charts/frontend
 
       - name: Run Helm Lint Backend
-        run: |
-          helm lint charts/backend
-
+        run: helm lint charts/backend
 
       - name: Run Helm Lint PostgreSQL
-        run: |
-          helm lint charts/postgres
-
-
+        run: helm lint charts/postgres
 
   security:
     name: Kubernetes Security Scan
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Verify .trivyignore exists
+        run: |
+          ls -la
+          test -f .trivyignore
 
       - name: Run Trivy Config Scan
-        uses: aquasecurity/trivy-action@master
-
+        uses: aquasecurity/trivy-action@0.33.1
         with:
           scan-type: config
           scan-ref: .
           format: table
-          exit-code: 1
           severity: HIGH,CRITICAL
-
-
+          exit-code: "1"
+          ignorefile: .trivyignore
 
   shellcheck:
     name: Validate Shell Scripts
     runs-on: ubuntu-latest
 
     steps:
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
-
         with:
           scandir: ./scripts
-
-
 
   completed:
     name: CI Status
@@ -147,9 +123,7 @@ jobs:
       - security
       - shellcheck
 
-
     steps:
-
       - name: Success
         run: |
           echo "All CI checks passed successfully."
