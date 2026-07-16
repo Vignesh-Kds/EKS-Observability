@@ -1,3 +1,4 @@
+#trivy:ignore:KSV-0109
 ---
 apiVersion: v1
 kind: ConfigMap

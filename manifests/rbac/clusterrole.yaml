@@ -6,7 +6,7 @@ metadata:
   name: app-cluster-role
 
 rules:
-  # Read cluster resources
+  # Core resources
   - apiGroups:
       - ""
     resources:
@@ -15,13 +15,13 @@ rules:
       - namespaces
       - nodes
       - configmaps
-      - secrets
+      - events
     verbs:
       - get
       - list
       - watch
 
-  # Deployment resources
+  # Workloads
   - apiGroups:
       - apps
     resources:
@@ -33,12 +33,8 @@ rules:
       - get
       - list
       - watch
-      - create
-      - update
-      - patch
-      - delete
 
-  # Jobs and CronJobs
+  # Jobs
   - apiGroups:
       - batch
     resources:
@@ -48,12 +44,8 @@ rules:
       - get
       - list
       - watch
-      - create
-      - update
-      - patch
-      - delete
 
-  # Ingress resources
+  # Networking
   - apiGroups:
       - networking.k8s.io
     resources:
@@ -64,22 +56,12 @@ rules:
       - list
       - watch
 
-  # Storage resources
+  # Storage
   - apiGroups:
       - storage.k8s.io
     resources:
       - storageclasses
       - persistentvolumes
-    verbs:
-      - get
-      - list
-      - watch
-
-  # Events for troubleshooting
-  - apiGroups:
-      - ""
-    resources:
-      - events
     verbs:
       - get
       - list

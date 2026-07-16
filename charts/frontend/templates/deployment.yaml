@@ -22,11 +22,27 @@ spec:
     spec:
       serviceAccountName: {{ include "frontend.serviceAccountName" . }}
 
+      # Pod Security Context
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+
       containers:
         - name: frontend
 
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          # Container Security Context
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
 
           ports:
             - name: http
@@ -53,7 +69,6 @@ spec:
             httpGet:
               path: /
               port: http
-
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -63,7 +78,6 @@ spec:
             httpGet:
               path: /
               port: http
-
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3

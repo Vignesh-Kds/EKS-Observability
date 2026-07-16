@@ -42,13 +42,13 @@ data:
             smarthost: smtp.example.com:587
             auth_username: alertmanager@example.com
             auth_identity: alertmanager@example.com
-            auth_password: YOUR_PASSWORD
+            auth_password: ${SMTP_PASSWORD}
             require_tls: true
             send_resolved: true
 
       - name: warning-alerts
         slack_configs:
-          - api_url: YOUR_SLACK_WEBHOOK_URL
+          - api_url: ${SLACK_WEBHOOK_URL}
             channel: "#alerts"
             send_resolved: true
 
