@@ -1,0 +1,19 @@
+misconfigurations:
+  - id: KSV-0041
+    paths:
+      - manifests/ingress/clusterrole.yaml
+    statement: >
+      Required by the Ingress-NGINX controller to access TLS Secrets for HTTPS termination.
+
+  - id: KSV-0109
+    paths:
+      - manifests/ingress/configmap.yaml
+    statement: >
+      False positive. 'server-tokens' is an NGINX configuration directive, not a secret.
+
+  - id: KSV-0109
+    paths:
+      - monitoring/alertmanager/alertmanager-config.yaml
+    statement: >
+      Alertmanager credentials are injected from a Kubernetes Secret using environment variables.
+      The ConfigMap contains only environment variable references.
