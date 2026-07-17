@@ -11,6 +11,7 @@ on:
     paths:
       - "manifests/**"
 
+
 env:
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
@@ -30,13 +31,15 @@ jobs:
 
     steps:
 
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
 
-      #################################################
-      # AWS Credentials
-      #################################################
+
+      ############################################
+      # AWS Authentication
+      ############################################
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -46,16 +49,19 @@ jobs:
           aws-region: "${{ env.AWS_REGION }}"
 
 
-      #################################################
-      # Tools
-      #################################################
+
+      ############################################
+      # Install Tools
+      ############################################
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
 
 
+
       - name: Install Helm
         uses: azure/setup-helm@v4
+
 
 
       - name: Install eksctl
@@ -76,9 +82,10 @@ jobs:
 
 
 
-      #################################################
-      # Kubernetes Access
-      #################################################
+
+      ############################################
+      # Configure Kubernetes
+      ############################################
 
       - name: Configure kubeconfig
         shell: bash
@@ -88,6 +95,7 @@ jobs:
           aws eks update-kubeconfig \
             --region "${AWS_REGION}" \
             --name "${CLUSTER_NAME}"
+
 
 
       - name: Verify Cluster
@@ -101,9 +109,10 @@ jobs:
 
 
 
-      #################################################
-      # EBS CSI Driver IAM
-      #################################################
+
+      ############################################
+      # EBS CSI Driver Setup
+      ############################################
 
       - name: Enable IAM OIDC Provider
         shell: bash
@@ -114,6 +123,7 @@ jobs:
             --region "${AWS_REGION}" \
             --cluster "${CLUSTER_NAME}" \
             --approve
+
 
 
 
@@ -146,7 +156,8 @@ jobs:
 
 
 
-      - name: Install EBS CSI Addon
+
+      - name: Install AWS EBS CSI Addon
         shell: bash
         run: |
           set -euo pipefail
@@ -156,6 +167,7 @@ jobs:
             --role-name "${EBS_ROLE_NAME}" \
             --query "Role.Arn" \
             --output text)
+
 
 
           if aws eks describe-addon \
@@ -179,6 +191,7 @@ jobs:
 
 
 
+
       - name: Wait EBS CSI
         shell: bash
         run: |
@@ -190,9 +203,11 @@ jobs:
 
 
 
-      #################################################
+
+
+      ############################################
       # Helm Repositories
-      #################################################
+      ############################################
 
       - name: Add Helm Repositories
         shell: bash
@@ -202,53 +217,64 @@ jobs:
           helm repo add jetstack \
             https://charts.jetstack.io
 
+
           helm repo add ingress-nginx \
             https://kubernetes.github.io/ingress-nginx
+
 
           helm repo update
 
 
 
-      #################################################
-      # cert-manager
-      #################################################
 
-      - name: Cleanup Old cert-manager CRDs
+
+      ############################################
+      # Cleanup Old cert-manager
+      ############################################
+
+      - name: Cleanup Existing cert-manager CRDs
         shell: bash
         run: |
           set -euo pipefail
 
 
-          if kubectl get crd challenges.acme.cert-manager.io \
-            >/dev/null 2>&1
+          echo "Checking cert-manager CRDs"
+
+
+
+          if kubectl get crd \
+            | grep cert-manager.io >/dev/null 2>&1
 
           then
 
-            echo "Existing cert-manager CRDs detected"
+            echo "Deleting old cert-manager CRDs"
 
 
-            if ! helm list \
-              -n cert-manager \
-              | grep cert-manager \
-              >/dev/null 2>&1
-
-            then
-
-              echo "Removing unmanaged cert-manager CRDs"
+            kubectl get crd \
+              | grep cert-manager.io \
+              | awk '{print $1}' \
+              | xargs -r kubectl delete crd
 
 
-              kubectl delete crd \
-                certificates.cert-manager.io \
-                certificaterequests.cert-manager.io \
-                challenges.acme.cert-manager.io \
-                orders.acme.cert-manager.io \
-                --ignore-not-found
+          else
 
-            fi
+            echo "No cert-manager CRDs found"
 
           fi
 
 
+
+          kubectl delete namespace cert-manager \
+            --ignore-not-found=true
+
+
+
+
+
+
+      ############################################
+      # Install cert-manager
+      ############################################
 
       - name: Install cert-manager
         shell: bash
@@ -263,6 +289,7 @@ jobs:
             --set crds.enabled=true \
             --wait \
             --timeout 10m
+
 
 
 
@@ -285,9 +312,12 @@ jobs:
 
 
 
-      #################################################
-      # NGINX Ingress
-      #################################################
+
+
+
+      ############################################
+      # Install NGINX Ingress
+      ############################################
 
       - name: Install NGINX Ingress Controller
         shell: bash
@@ -304,14 +334,18 @@ jobs:
 
 
 
-      #################################################
-      # Kubernetes Resources
-      #################################################
+
+
+
+      ############################################
+      # Kubernetes Manifests
+      ############################################
 
       - name: Apply Namespace
         run: |
           kubectl apply \
             -f manifests/namespace.yaml
+
 
 
       - name: Apply StorageClass
@@ -320,10 +354,12 @@ jobs:
             -f manifests/storageclass.yaml
 
 
+
       - name: Apply NetworkPolicy
         run: |
           kubectl apply \
             -f manifests/networkpolicy.yaml
+
 
 
       - name: Apply RBAC
@@ -333,6 +369,7 @@ jobs:
             -f manifests/rbac/
 
 
+
       - name: Apply ClusterIssuer
         run: |
           kubectl apply \
@@ -340,42 +377,42 @@ jobs:
 
 
 
-      #################################################
+
+
+
+      ############################################
       # Verification
-      #################################################
+      ############################################
 
       - name: Verify Infrastructure
         shell: bash
         run: |
 
-          echo "Nodes"
           kubectl get nodes
 
 
-          echo "StorageClass"
           kubectl get storageclass
 
 
-          echo "EBS CSI"
           kubectl get pods \
             -n kube-system \
             | grep ebs
 
 
-          echo "cert-manager"
           kubectl get pods \
             -n cert-manager
 
 
-          echo "Ingress"
           kubectl get pods \
             -n ingress-nginx
 
 
 
-      #################################################
+
+
+      ############################################
       # Debug
-      #################################################
+      ############################################
 
       - name: Debug Failure
         if: failure()
@@ -392,11 +429,13 @@ jobs:
 
 
 
+
+
       - name: Deployment Summary
         run: |
 
-          echo "================================="
-          echo "Infrastructure Deployment Complete"
-          echo "Cluster: ${CLUSTER_NAME}"
-          echo "Region : ${AWS_REGION}"
-          echo "================================="
+          echo "================================"
+          echo "Infrastructure Deployment Done"
+          echo "Cluster : ${CLUSTER_NAME}"
+          echo "Region  : ${AWS_REGION}"
+          echo "================================"
