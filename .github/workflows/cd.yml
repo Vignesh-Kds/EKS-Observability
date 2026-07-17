@@ -11,6 +11,7 @@ on:
     paths:
       - "manifests/**"
 
+
 env:
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
@@ -30,14 +31,12 @@ jobs:
 
     steps:
 
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
 
-
       ############################################
-      # AWS
+      # AWS Credentials
       ############################################
 
       - name: Configure AWS Credentials
@@ -48,9 +47,8 @@ jobs:
           aws-region: "${{ env.AWS_REGION }}"
 
 
-
       ############################################
-      # Tools
+      # Install Tools
       ############################################
 
       - name: Install kubectl
@@ -79,9 +77,8 @@ jobs:
 
 
 
-
       ############################################
-      # Kubernetes Connection
+      # Kubernetes Access
       ############################################
 
       - name: Configure kubeconfig
@@ -94,18 +91,14 @@ jobs:
             --name "${CLUSTER_NAME}"
 
 
-
       - name: Verify Cluster
         shell: bash
         run: |
           set -euo pipefail
 
-          aws sts get-caller-identity
-
           kubectl cluster-info
 
           kubectl get nodes
-
 
 
 
@@ -137,7 +130,7 @@ jobs:
 
           then
 
-            echo "EBS CSI role already exists"
+            echo "EBS CSI role exists"
 
           else
 
@@ -154,7 +147,6 @@ jobs:
 
 
 
-
       - name: Install EBS CSI Addon
         shell: bash
         run: |
@@ -167,7 +159,6 @@ jobs:
             --output text)
 
 
-
           if aws eks describe-addon \
             --cluster-name "${CLUSTER_NAME}" \
             --addon-name aws-ebs-csi-driver \
@@ -175,7 +166,7 @@ jobs:
 
           then
 
-            echo "EBS CSI addon exists"
+            echo "EBS CSI addon already exists"
 
           else
 
@@ -200,9 +191,8 @@ jobs:
 
 
 
-
       ############################################
-      # Helm Repo
+      # Helm Repositories
       ############################################
 
       - name: Add Helm Repositories
@@ -222,7 +212,6 @@ jobs:
 
 
 
-
       ############################################
       # cert-manager Cleanup
       ############################################
@@ -233,22 +222,14 @@ jobs:
           set -euo pipefail
 
 
-          if kubectl get crd \
-            | grep cert-manager.io >/dev/null 2>&1
-
-          then
-
-            kubectl get crd \
-              | grep cert-manager.io \
-              | awk '{print $1}' \
-              | xargs -r kubectl delete crd
-
-          fi
+          kubectl get crd \
+            | grep cert-manager.io \
+            | awk '{print $1}' \
+            | xargs -r kubectl delete crd
 
 
           kubectl delete namespace cert-manager \
             --ignore-not-found=true
-
 
 
 
@@ -272,16 +253,10 @@ jobs:
 
 
 
-
       - name: Verify cert-manager
-        shell: bash
         run: |
-          set -euo pipefail
-
-
           kubectl get pods \
             -n cert-manager
-
 
 
 
@@ -295,12 +270,35 @@ jobs:
           set -euo pipefail
 
 
+          helm uninstall ingress-nginx \
+            -n ingress-nginx \
+            || true
+
+
           kubectl delete namespace ingress-nginx \
-            --ignore-not-found=true
+            --ignore-not-found=true \
+            || true
 
 
-          sleep 20
+          kubectl delete clusterrole ingress-nginx \
+            --ignore-not-found=true \
+            || true
 
+
+          kubectl delete clusterrolebinding ingress-nginx \
+            --ignore-not-found=true \
+            || true
+
+
+          kubectl delete ingressclass ingress-nginx \
+            --ignore-not-found=true \
+            || true
+
+
+          kubectl delete validatingwebhookconfiguration \
+            ingress-nginx-admission \
+            --ignore-not-found=true \
+            || true
 
 
 
@@ -323,17 +321,10 @@ jobs:
 
 
 
-
       - name: Verify ingress-nginx
-        shell: bash
         run: |
-          set -euo pipefail
-
-
           kubectl get pods \
             -n ingress-nginx
-
-
 
 
 
@@ -347,19 +338,16 @@ jobs:
             -f manifests/namespace.yaml
 
 
-
       - name: Apply StorageClass
         run: |
           kubectl apply \
             -f manifests/storageclass.yaml
 
 
-
       - name: Apply NetworkPolicy
         run: |
           kubectl apply \
             -f manifests/networkpolicy.yaml
-
 
 
       - name: Apply RBAC
@@ -369,7 +357,6 @@ jobs:
             -f manifests/rbac/
 
 
-
       - name: Apply ClusterIssuer
         run: |
           kubectl apply \
@@ -377,12 +364,11 @@ jobs:
 
 
 
-
       ############################################
-      # Verification
+      # Final Verification
       ############################################
 
-      - name: Final Verification
+      - name: Verify Infrastructure
         shell: bash
         run: |
           set -euo pipefail
@@ -408,8 +394,6 @@ jobs:
 
 
 
-
-
       ############################################
       # Debug
       ############################################
@@ -429,12 +413,11 @@ jobs:
 
 
 
-
-      - name: Summary
+      - name: Deployment Summary
         run: |
 
           echo "================================"
-          echo "Infrastructure deployment done"
-          echo "Cluster : ${CLUSTER_NAME}"
-          echo "Region  : ${AWS_REGION}"
+          echo "Infrastructure Deployment Complete"
+          echo "Cluster: ${CLUSTER_NAME}"
+          echo "Region : ${AWS_REGION}"
           echo "================================"
