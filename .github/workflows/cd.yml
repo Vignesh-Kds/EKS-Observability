@@ -63,7 +63,6 @@ jobs:
 
           eksctl version
 
-
       - name: Configure kubeconfig
         shell: bash
         run: |
