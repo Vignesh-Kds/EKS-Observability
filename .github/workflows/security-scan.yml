@@ -1,7 +1,7 @@
 ---
 name: Security Scan
 
-"on":
+on:
   push:
     branches:
       - main
@@ -13,7 +13,7 @@ name: Security Scan
       - master
 
   schedule:
-    - cron: "0 2 * * 1"  # Every Monday at 02:00 UTC
+    - cron: "0 2 * * 1"
 
   workflow_dispatch:
 
@@ -38,6 +38,7 @@ jobs:
           format: sarif
           output: trivy-config.sarif
           severity: HIGH,CRITICAL
+          exit-code: "1"
 
       - name: Upload Trivy Results
         uses: github/codeql-action/upload-sarif@v3
@@ -65,21 +66,12 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Install kube-score
-        run: |
-          wget \
-            https://github.com/zegl/kube-score/releases/latest/download/kube-score_linux_amd64
-          chmod +x kube-score_linux_amd64
-          sudo mv \
-            kube-score_linux_amd64 \
-            /usr/local/bin/kube-score
-
       - name: Run kube-score
-        run: |
-          find . -type f \
-            \( -name "*.yaml" -o -name "*.yml" \) \
-            -not -path "./.github/*" \
-            -exec kube-score score {} \;
+        uses: zegl/kube-score-action@v1
+        with:
+          paths: |
+            charts
+            manifests
 
   yamllint:
     name: YAML Lint
@@ -89,7 +81,7 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Run YAML Lint
+      - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
 
   shellcheck:
@@ -116,9 +108,17 @@ jobs:
       - yamllint
       - shellcheck
 
+    if: always()
+
     steps:
       - name: Summary
         run: |
           echo "===================================="
-          echo "Security scanning completed successfully."
+          echo "Security Scan Summary"
+          echo "===================================="
+          echo "Trivy       : ${{ needs.trivy-config.result }}"
+          echo "KubeLinter  : ${{ needs.kube-linter.result }}"
+          echo "Kube-score  : ${{ needs.kube-score.result }}"
+          echo "Yamllint    : ${{ needs.yamllint.result }}"
+          echo "ShellCheck  : ${{ needs.shellcheck.result }}"
           echo "===================================="
