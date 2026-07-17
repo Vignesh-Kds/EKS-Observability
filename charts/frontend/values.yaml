@@ -5,7 +5,7 @@ replicaCount: 2
 image:
   repository: vigneshawss/frontend
   tag: "v1.0.0"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 service:
   type: ClusterIP

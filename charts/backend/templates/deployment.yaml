@@ -21,6 +21,7 @@ spec:
 
     spec:
       serviceAccountName: {{ include "backend.serviceAccountName" . }}
+      automountServiceAccountToken: false
 
       affinity:
         podAntiAffinity:
