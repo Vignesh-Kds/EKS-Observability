@@ -3,10 +3,14 @@ name: Security Scan
 
 on:
   push:
-    branches: [main, master]
+    branches:
+      - main
+      - master
 
   pull_request:
-    branches: [main, master]
+    branches:
+      - main
+      - master
 
   workflow_dispatch:
 
@@ -20,14 +24,14 @@ permissions:
 jobs:
 
   trivy:
-    name: Trivy Config Scan
+    name: Trivy Configuration Scan
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Run Trivy
+      - name: Run Trivy Config Scan
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: config
@@ -36,42 +40,72 @@ jobs:
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
 
-      - name: Upload SARIF
+      - name: Upload Trivy SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
 
   kube-linter:
-    name: KubeLinter
+    name: Kubernetes Manifest Lint
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-      - name: Run KubeLinter
-        uses: stackrox/kube-linter-action@v1
-        with:
-          directory: .
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Install KubeLinter
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/stackrox/kube-linter/main/scripts/install.sh | sh
+          sudo mv kube-linter /usr/local/bin/
+          kube-linter version
+
+      - name: Render Backend Chart
+        run: |
+          helm dependency update charts/backend || true
+          helm template backend charts/backend > backend.yaml
+
+      - name: Render Frontend Chart
+        run: |
+          helm dependency update charts/frontend || true
+          helm template frontend charts/frontend > frontend.yaml
+
+      - name: Run KubeLinter on Helm Charts
+        run: |
+          kube-linter lint backend.yaml
+          kube-linter lint frontend.yaml
+
+      - name: Run KubeLinter on Kubernetes Manifests
+        run: |
+          if [ -d manifests ]; then
+            find manifests -type f \( -name "*.yaml" -o -name "*.yml" \) \
+              -exec kube-linter lint {} \;
+          fi
 
   checkov:
     name: Checkov IaC Scan
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@v12
         with:
           directory: .
           framework: kubernetes,helm,terraform
+          quiet: true
 
   yamllint:
     name: YAML Lint
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -79,11 +113,12 @@ jobs:
           file_or_dir: .
 
   shellcheck:
-    name: ShellCheck
+    name: Shell Script Lint
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
@@ -91,7 +126,7 @@ jobs:
           scandir: ./scripts
 
   summary:
-    name: Security Summary
+    name: Security Scan Summary
     runs-on: ubuntu-latest
 
     if: always()
@@ -104,14 +139,14 @@ jobs:
       - shellcheck
 
     steps:
-      - name: Print Results
+      - name: Print Summary
         run: |
-          echo "======================================"
+          echo "=========================================="
           echo "Security Scan Summary"
-          echo "======================================"
+          echo "=========================================="
           echo "Trivy      : ${{ needs.trivy.result }}"
           echo "KubeLinter : ${{ needs.kube-linter.result }}"
           echo "Checkov    : ${{ needs.checkov.result }}"
           echo "yamllint   : ${{ needs.yamllint.result }}"
           echo "ShellCheck : ${{ needs.shellcheck.result }}"
-          echo "======================================"
+          echo "=========================================="
