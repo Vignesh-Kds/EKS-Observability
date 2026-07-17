@@ -1,0 +1,284 @@
+---
+# Source: postgres/templates/networkpolicy.yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+
+metadata:
+  name: postgres-postgres
+  labels:
+    helm.sh/chart: postgres-1.0.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+    app.kubernetes.io/version: 16.4
+    app.kubernetes.io/managed-by: Helm
+
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/instance: postgres
+
+  policyTypes:
+    - Ingress
+    - Egress
+
+  ingress:
+    - from:
+        - podSelector: {}
+
+  egress:
+    - {}
+
+---
+# Source: postgres/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+
+metadata:
+  name: postgres-postgres
+  labels:
+    helm.sh/chart: postgres-1.0.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+    app.kubernetes.io/version: 16.4
+    app.kubernetes.io/managed-by: Helm
+
+automountServiceAccountToken: false
+
+---
+# Source: postgres/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+
+metadata:
+  name: postgres-postgres
+  labels:
+    helm.sh/chart: postgres-1.0.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+    app.kubernetes.io/version: 16.4
+    app.kubernetes.io/managed-by: Helm
+
+type: Opaque
+
+stringData:
+  POSTGRES_USER: "appuser"
+  POSTGRES_PASSWORD: "change-me"
+
+---
+# Source: postgres/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+
+metadata:
+  name: postgres-postgres
+  labels:
+    helm.sh/chart: postgres-1.0.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+    app.kubernetes.io/version: 16.4
+    app.kubernetes.io/managed-by: Helm
+
+data:
+  POSTGRES_DB: "appdb"
+  PGDATA: "/var/lib/postgresql/data/pgdata"
+
+---
+# Source: postgres/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+
+metadata:
+  name: postgres-postgres-pvc
+  labels:
+    helm.sh/chart: postgres-1.0.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+    app.kubernetes.io/version: 16.4
+    app.kubernetes.io/managed-by: Helm
+
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+
+  resources:
+    requests:
+      storage: 20Gi
+
+  storageClassName: "gp3"
+
+---
+# Source: postgres/templates/service.yaml
+apiVersion: v1
+kind: Service
+
+metadata:
+  name: postgres-postgres
+  labels:
+    helm.sh/chart: postgres-1.0.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+    app.kubernetes.io/version: 16.4
+    app.kubernetes.io/managed-by: Helm
+
+spec:
+  type: ClusterIP
+
+  selector:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+
+  ports:
+    - name: postgres
+      protocol: TCP
+      port: 5432
+      targetPort: 5432
+
+---
+# Source: postgres/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+
+metadata:
+  name: postgres-postgres
+  namespace: default
+  labels:
+    helm.sh/chart: postgres-1.0.0
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: postgres
+    app.kubernetes.io/version: 16.4
+    app.kubernetes.io/managed-by: Helm
+
+spec:
+  replicas: 1
+
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/instance: postgres
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres
+        app.kubernetes.io/instance: postgres
+
+    spec:
+      serviceAccountName: postgres-postgres
+      automountServiceAccountToken: false
+
+      securityContext:
+        runAsNonRoot: true
+
+        # PostgreSQL official image uses UID/GID 999
+        runAsUser: 999
+        runAsGroup: 999
+        fsGroup: 999
+
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+        - name: postgres
+
+          image: "postgres:16.4"
+          imagePullPolicy: Always
+
+          securityContext:
+            allowPrivilegeEscalation: false
+
+            runAsNonRoot: true
+            runAsUser: 999
+            runAsGroup: 999
+
+            readOnlyRootFilesystem: true
+
+            capabilities:
+              drop:
+                - ALL
+
+            seccompProfile:
+              type: RuntimeDefault
+
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+
+          env:
+            - name: POSTGRES_DB
+              value: "appdb"
+
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-postgres
+                  key: POSTGRES_USER
+
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgres-postgres
+                  key: POSTGRES_PASSWORD
+
+
+          volumeMounts:
+
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+
+            - name: postgres-run
+              mountPath: /var/run/postgresql
+
+            - name: postgres-tmp
+              mountPath: /tmp
+
+
+          resources:
+
+            requests:
+              cpu: 250m
+              memory: 512Mi
+
+            limits:
+              cpu: 1
+              memory: 1Gi
+
+
+          livenessProbe:
+            exec:
+              command:
+                - pg_isready
+                - "-U"
+                - "appuser"
+
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+
+
+          readinessProbe:
+            exec:
+              command:
+                - pg_isready
+                - "-U"
+                - "appuser"
+
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+
+
+      volumes:
+
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-postgres-pvc
+
+        - name: postgres-run
+          emptyDir: {}
+
+        - name: postgres-tmp
+          emptyDir: {}

@@ -68,6 +68,10 @@ jobs:
           helm lint charts/backend
           helm lint charts/frontend
 
+      - name: Existing Helm Releases
+        run: |
+          helm list -A
+
       - name: Deploy PostgreSQL
         run: |
           helm upgrade --install postgres \
@@ -77,6 +81,12 @@ jobs:
             --wait \
             --timeout 10m
 
+      - name: Wait for PostgreSQL
+        run: |
+          kubectl rollout status deployment/postgres-postgres \
+            -n "${NAMESPACE}" \
+            --timeout=300s
+
       - name: Deploy Backend
         run: |
           helm upgrade --install backend \
@@ -84,6 +94,12 @@ jobs:
             --namespace "${NAMESPACE}" \
             --wait \
             --timeout 10m
+
+      - name: Wait for Backend
+        run: |
+          kubectl rollout status deployment/backend-backend \
+            -n "${NAMESPACE}" \
+            --timeout=300s
 
       - name: Deploy Frontend
         run: |
@@ -93,6 +109,15 @@ jobs:
             --wait \
             --timeout 10m
 
+      - name: Wait for Frontend
+        run: |
+          kubectl rollout status deployment/frontend \
+            -n "${NAMESPACE}" \
+            --timeout=300s || \
+          kubectl rollout status deployment/frontend-frontend \
+            -n "${NAMESPACE}" \
+            --timeout=300s
+
       - name: Verify Helm Releases
         run: |
           helm list -n "${NAMESPACE}"
@@ -100,15 +125,15 @@ jobs:
       - name: Verify Kubernetes Resources
         run: |
           kubectl get deployments -n "${NAMESPACE}"
-          kubectl get pods -n "${NAMESPACE}"
+          kubectl get pods -o wide -n "${NAMESPACE}"
           kubectl get svc -n "${NAMESPACE}"
           kubectl get ingress -n "${NAMESPACE}" || true
 
-      - name: Wait for Deployments
+      - name: Describe Pods on Failure
+        if: failure()
         run: |
-          kubectl rollout status deployment/postgres -n "${NAMESPACE}" --timeout=300s || true
-          kubectl rollout status deployment/backend -n "${NAMESPACE}" --timeout=300s
-          kubectl rollout status deployment/frontend -n "${NAMESPACE}" --timeout=300s
+          kubectl get events -n "${NAMESPACE}" --sort-by=.lastTimestamp
+          kubectl describe pods -n "${NAMESPACE}"
 
       - name: Deployment Summary
         run: |

@@ -1,21 +1,23 @@
 ---
-name: CD Pipeline
+name: Infrastructure Deployment
 
 on:
+  workflow_dispatch:
+
   push:
     branches:
       - main
       - master
-  workflow_dispatch:
+    paths:
+      - "manifests/**"
 
 env:
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
-  NAMESPACE: monitoring
 
 jobs:
-  deploy:
-    name: Deploy to Amazon EKS
+  infrastructure:
+    name: Deploy Infrastructure to Amazon EKS
     runs-on: ubuntu-latest
 
     permissions:
@@ -50,46 +52,78 @@ jobs:
 
       - name: Verify Cluster Connectivity
         run: |
-          kubectl version --client
           kubectl config current-context
           kubectl cluster-info
           kubectl get nodes
 
-      - name: Create Namespace
+      - name: Add Helm Repositories
         run: |
-          kubectl create namespace "${NAMESPACE}" \
-            --dry-run=client -o yaml | kubectl apply -f -
+          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+          helm repo update
 
-      - name: Deploy Kubernetes Manifests
+      - name: Install NGINX Ingress Controller
         run: |
-          kubectl apply -f manifests/
+          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+            --namespace ingress-nginx \
+            --create-namespace \
+            --wait \
+            --timeout 10m
 
-      - name: Wait for Deployments
+      - name: Verify Ingress Controller
         run: |
-          kubectl rollout status deployment/prometheus -n "${NAMESPACE}" --timeout=300s
-          kubectl rollout status deployment/grafana -n "${NAMESPACE}" --timeout=300s
-          kubectl rollout status deployment/loki -n "${NAMESPACE}" --timeout=300s
-          kubectl rollout status deployment/alertmanager -n "${NAMESPACE}" --timeout=300s
+          kubectl rollout status deployment/ingress-nginx-controller \
+            -n ingress-nginx \
+            --timeout=300s
 
-      - name: Verify Resources
+      - name: Create Production Namespace
         run: |
-          echo "========== Pods =========="
-          kubectl get pods -n "${NAMESPACE}"
+          kubectl apply -f manifests/namespace.yaml
 
-          echo "========== Services =========="
-          kubectl get svc -n "${NAMESPACE}"
-
-          echo "========== Deployments =========="
-          kubectl get deployments -n "${NAMESPACE}"
-
-          echo "========== Ingress =========="
-          kubectl get ingress -n "${NAMESPACE}" || true
-
-      - name: Deployment Summary
+      - name: Apply StorageClass
         run: |
-          echo "========================================"
-          echo "Deployment completed successfully!"
-          echo "Cluster   : ${CLUSTER_NAME}"
-          echo "Region    : ${AWS_REGION}"
-          echo "Namespace : ${NAMESPACE}"
-          echo "========================================"
+          kubectl apply -f manifests/storageclass.yaml
+
+      - name: Apply Network Policy
+        run: |
+          kubectl apply -f manifests/networkpolicy.yaml
+
+      - name: Apply RBAC
+        run: |
+          kubectl apply -R -f manifests/rbac/
+
+      - name: Apply ClusterIssuer
+        run: |
+          if kubectl get crd clusterissuers.cert-manager.io >/dev/null 2>&1; then
+            kubectl apply -f manifests/clusterissuer.yaml
+          else
+            echo "cert-manager CRDs not found. Skipping ClusterIssuer."
+          fi
+
+      - name: Verify Infrastructure
+        run: |
+          kubectl get ns
+          kubectl get ingressclass
+          kubectl get storageclass
+          kubectl get clusterrole | grep app || true
+          kubectl get pods -n ingress-nginx
+          kubectl get svc -n ingress-nginx
+
+      - name: Describe Resources on Failure
+        if: failure()
+        run: |
+          echo "===== Ingress Pods ====="
+          kubectl get pods -n ingress-nginx
+
+          echo "===== Events ====="
+          kubectl get events -A --sort-by=.lastTimestamp
+
+          echo "===== Ingress Controller ====="
+          kubectl describe deployment ingress-nginx-controller -n ingress-nginx || true
+
+      - name: Infrastructure Deployment Summary
+        run: |
+          echo "=========================================="
+          echo "Infrastructure deployment completed"
+          echo "Cluster : ${CLUSTER_NAME}"
+          echo "Region  : ${AWS_REGION}"
+          echo "=========================================="

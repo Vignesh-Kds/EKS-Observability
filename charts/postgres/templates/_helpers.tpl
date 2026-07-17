@@ -27,19 +27,19 @@ Create chart name and version.
 Common labels.
 */}}
 {{- define "postgres.labels" -}}
-helm.sh/chart: {{ include "postgres.chart" . }}
-app.kubernetes.io/name: {{ include "postgres.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
-app.kubernetes.io/version: {{ .Chart.AppVersion }}
-app.kubernetes.io/managed-by: {{ .Release.Service }}
+helm.sh/chart: {{ include "postgres.chart" . | quote }}
+app.kubernetes.io/name: {{ include "postgres.name" . | quote }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
+app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
+app.kubernetes.io/managed-by: {{ .Release.Service | quote }}
 {{- end }}
 
 {{/*
 Selector labels.
 */}}
 {{- define "postgres.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "postgres.name" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/name: {{ include "postgres.name" . | quote }}
+app.kubernetes.io/instance: {{ .Release.Name | quote }}
 {{- end }}
 
 {{/*
