@@ -16,7 +16,9 @@ env:
   CLUSTER_NAME: vickycluster
 
 jobs:
+
   infrastructure:
+
     name: Deploy Infrastructure to Amazon EKS
     runs-on: ubuntu-latest
 
@@ -24,8 +26,13 @@ jobs:
       contents: read
 
     steps:
+
       - name: Checkout Repository
         uses: actions/checkout@v4
+
+      ############################################
+      # AWS Authentication
+      ############################################
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -34,15 +41,24 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
+      ############################################
+      # Install Tools
+      ############################################
+
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
         with:
           version: latest
 
+
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
           version: latest
+
+      ############################################
+      # Kubernetes Connection
+      ############################################
 
       - name: Configure kubeconfig
         run: |
@@ -50,20 +66,109 @@ jobs:
             --region "${AWS_REGION}" \
             --name "${CLUSTER_NAME}"
 
+
       - name: Verify Cluster Connectivity
         run: |
+          aws sts get-caller-identity
           kubectl config current-context
           kubectl cluster-info
           kubectl get nodes
 
+      ############################################
+      # AWS EBS CSI DRIVER
+      ############################################
+
+      - name: Install AWS EBS CSI Driver
+        run: |
+
+          if aws eks list-addons \
+            --cluster-name "${CLUSTER_NAME}" \
+            --query addons \
+            --output text | grep -q aws-ebs-csi-driver
+          then
+
+            echo "AWS EBS CSI Driver already installed"
+
+          else
+
+            echo "Installing AWS EBS CSI Driver"
+
+            aws eks create-addon \
+              --cluster-name "${CLUSTER_NAME}" \
+              --addon-name aws-ebs-csi-driver
+
+          fi
+
+      - name: Wait For EBS CSI Driver
+        run: |
+
+          aws eks wait addon-active \
+            --cluster-name "${CLUSTER_NAME}" \
+            --addon-name aws-ebs-csi-driver
+
+      - name: Verify EBS CSI Driver
+        run: |
+
+          kubectl get pods -n kube-system | grep ebs
+
+      ############################################
+      # HELM REPOSITORIES
+      ############################################
+
       - name: Add Helm Repositories
         run: |
-          helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+
+          helm repo add ingress-nginx \
+            https://kubernetes.github.io/ingress-nginx
+
+          helm repo add jetstack \
+            https://charts.jetstack.io
+
           helm repo update
+
+      ############################################
+      # CERT MANAGER
+      ############################################
+
+      - name: Install cert-manager
+        run: |
+
+          helm upgrade --install cert-manager \
+            jetstack/cert-manager \
+            --namespace cert-manager \
+            --create-namespace \
+            --set crds.enabled=true \
+            --wait \
+            --timeout 10m
+
+
+      - name: Verify cert-manager
+        run: |
+
+          kubectl rollout status \
+            deployment/cert-manager \
+            -n cert-manager \
+            --timeout=300s
+
+          kubectl rollout status \
+            deployment/cert-manager-webhook \
+            -n cert-manager \
+            --timeout=300s
+
+          kubectl rollout status \
+            deployment/cert-manager-cainjector \
+            -n cert-manager \
+            --timeout=300s
+
+      ############################################
+      # NGINX INGRESS CONTROLLER
+      ############################################
 
       - name: Install NGINX Ingress Controller
         run: |
-          helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx \
+
+          helm upgrade --install ingress-nginx \
+            ingress-nginx/ingress-nginx \
             --namespace ingress-nginx \
             --create-namespace \
             --wait \
@@ -71,59 +176,125 @@ jobs:
 
       - name: Verify Ingress Controller
         run: |
-          kubectl rollout status deployment/ingress-nginx-controller \
+
+          kubectl rollout status \
+            deployment/ingress-nginx-controller \
             -n ingress-nginx \
             --timeout=300s
 
+      ############################################
+      # APPLICATION INFRASTRUCTURE
+      ############################################
+
       - name: Create Production Namespace
         run: |
-          kubectl apply -f manifests/namespace.yaml
+
+          kubectl apply \
+            -f manifests/namespace.yaml
+
+
 
       - name: Apply StorageClass
         run: |
-          kubectl apply -f manifests/storageclass.yaml
 
-      - name: Apply Network Policy
+          kubectl apply \
+            -f manifests/storageclass.yaml
+
+      - name: Apply Network Policies
         run: |
-          kubectl apply -f manifests/networkpolicy.yaml
+
+          kubectl apply \
+            -f manifests/networkpolicy.yaml
 
       - name: Apply RBAC
         run: |
-          kubectl apply -R -f manifests/rbac/
+
+          kubectl apply \
+            -R \
+            -f manifests/rbac/
+
+      ############################################
+      # CERTIFICATE ISSUER
+      ############################################
 
       - name: Apply ClusterIssuer
         run: |
-          if kubectl get crd clusterissuers.cert-manager.io >/dev/null 2>&1; then
-            kubectl apply -f manifests/clusterissuer.yaml
-          else
-            echo "cert-manager CRDs not found. Skipping ClusterIssuer."
-          fi
+
+          kubectl apply \
+            -f manifests/clusterissuer.yaml
+
+      ############################################
+      # VALIDATION
+      ############################################
 
       - name: Verify Infrastructure
         run: |
-          kubectl get ns
-          kubectl get ingressclass
-          kubectl get storageclass
-          kubectl get clusterrole | grep app || true
-          kubectl get pods -n ingress-nginx
-          kubectl get svc -n ingress-nginx
 
-      - name: Describe Resources on Failure
+          echo "===== Namespaces ====="
+          kubectl get ns
+
+
+          echo "===== Storage ====="
+          kubectl get storageclass
+
+          echo "===== Ingress ====="
+          kubectl get ingressclass
+
+
+          echo "===== EBS CSI ====="
+          kubectl get pods \
+            -n kube-system | grep ebs
+
+          echo "===== Cert Manager ====="
+          kubectl get pods \
+            -n cert-manager
+
+          echo "===== NGINX ====="
+          kubectl get pods \
+            -n ingress-nginx
+
+          echo "===== Services ====="
+          kubectl get svc \
+            -n ingress-nginx
+
+      ############################################
+      # FAILURE DEBUG
+      ############################################
+
+      - name: Describe Resources On Failure
         if: failure()
         run: |
-          echo "===== Ingress Pods ====="
-          kubectl get pods -n ingress-nginx
 
-          echo "===== Events ====="
-          kubectl get events -A --sort-by=.lastTimestamp
+          echo "===== Cluster Events ====="
 
-          echo "===== Ingress Controller ====="
-          kubectl describe deployment ingress-nginx-controller -n ingress-nginx || true
+          kubectl get events \
+            -A \
+            --sort-by=.lastTimestamp
 
-      - name: Infrastructure Deployment Summary
+          echo "===== EBS CSI ====="
+
+          kubectl get pods \
+            -n kube-system | grep ebs || true
+
+          echo "===== Cert Manager ====="
+
+          kubectl get pods \
+            -n cert-manager || true
+
+          echo "===== Ingress ====="
+
+          kubectl get pods \
+            -n ingress-nginx || true
+
+      ############################################
+      # SUMMARY
+      ############################################
+
+      - name: Deployment Summary
         run: |
-          echo "=========================================="
-          echo "Infrastructure deployment completed"
+
+          echo "======================================"
+          echo "Infrastructure Deployment Completed"
           echo "Cluster : ${CLUSTER_NAME}"
           echo "Region  : ${AWS_REGION}"
-          echo "=========================================="
+          echo "======================================"
