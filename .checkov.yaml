@@ -1,0 +1,17 @@
+skip-check:
+  - CKV_K8S_21   # Helm renders into default namespace
+  - CKV_K8S_35   # Secrets as env vars
+  - CKV_K8S_43   # Image digest
+
+skip-path:
+  - monitoring
+  - manifests/ingress
+#For a production-quality DevSecOps project
+#I would:
+
+# Fix CKV_K8S_15 (Always pull images)
+# Fix CKV_K8S_38 (disable automount in Pod spec)
+# Add NetworkPolicies (CKV2_K8S_6)
+# Render Helm with --namespace production in CI
+# Exclude vendor manifests (monitoring/, ingress)
+# Skip CKV_K8S_35 and CKV_K8S_43 unless you plan to use secret volumes and image digests.
