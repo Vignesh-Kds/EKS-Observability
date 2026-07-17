@@ -18,10 +18,8 @@ env:
 
 
 jobs:
-
   infrastructure:
-
-    name: Deploy Infrastructure to Amazon EKS
+    name: Deploy Infrastructure to EKS
     runs-on: ubuntu-latest
 
     permissions:
@@ -43,18 +41,27 @@ jobs:
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
-        with:
-          version: latest
 
 
       - name: Install Helm
         uses: azure/setup-helm@v4
-        with:
-          version: latest
 
 
       - name: Install eksctl
-        uses: nexxyz/eksctl-action@v0.1.1
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          curl --silent --location \
+            "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" \
+            -o /tmp/eksctl.tar.gz
+
+          tar -xzf /tmp/eksctl.tar.gz \
+            -C /tmp
+
+          sudo mv /tmp/eksctl /usr/local/bin/eksctl
+
+          eksctl version
 
 
       - name: Configure kubeconfig
@@ -63,8 +70,8 @@ jobs:
           set -euo pipefail
 
           aws eks update-kubeconfig \
-            --name "${CLUSTER_NAME}" \
-            --region "${AWS_REGION}"
+            --region "${AWS_REGION}" \
+            --name "${CLUSTER_NAME}"
 
 
       - name: Verify Cluster Connectivity
@@ -72,12 +79,9 @@ jobs:
         run: |
           set -euo pipefail
 
-          aws sts get-caller-identity
-
           kubectl cluster-info
 
           kubectl get nodes
-
 
 
       - name: Create EBS CSI IAM Role
@@ -89,10 +93,8 @@ jobs:
             --role-name "${EBS_ROLE_NAME}" \
             >/dev/null 2>&1
           then
-            echo "EBS CSI IAM role already exists"
+            echo "EBS CSI role already exists"
           else
-            echo "Creating EBS CSI IAM role"
-
             eksctl create iamserviceaccount \
               --cluster "${CLUSTER_NAME}" \
               --namespace kube-system \
@@ -102,7 +104,6 @@ jobs:
               arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
               --approve
           fi
-
 
 
       - name: Install AWS EBS CSI Driver
@@ -115,16 +116,13 @@ jobs:
             --query "Role.Arn" \
             --output text)
 
-
           if aws eks describe-addon \
             --cluster-name "${CLUSTER_NAME}" \
             --addon-name aws-ebs-csi-driver \
             >/dev/null 2>&1
           then
-            echo "EBS CSI addon already exists"
+            echo "EBS CSI addon exists"
           else
-            echo "Installing EBS CSI addon"
-
             aws eks create-addon \
               --cluster-name "${CLUSTER_NAME}" \
               --addon-name aws-ebs-csi-driver \
@@ -133,8 +131,7 @@ jobs:
           fi
 
 
-
-      - name: Wait For EBS CSI Driver
+      - name: Wait For EBS CSI
         shell: bash
         run: |
           set -euo pipefail
@@ -142,18 +139,6 @@ jobs:
           aws eks wait addon-active \
             --cluster-name "${CLUSTER_NAME}" \
             --addon-name aws-ebs-csi-driver
-
-
-
-      - name: Verify EBS CSI Driver
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          kubectl get pods \
-            -n kube-system \
-            | grep ebs
-
 
 
       - name: Add Helm Repositories
@@ -170,7 +155,6 @@ jobs:
           helm repo update
 
 
-
       - name: Install cert-manager
         shell: bash
         run: |
@@ -183,24 +167,6 @@ jobs:
             --set crds.enabled=true \
             --wait \
             --timeout 10m
-
-
-
-      - name: Verify cert-manager
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          kubectl rollout status \
-            deployment/cert-manager \
-            -n cert-manager \
-            --timeout=300s
-
-          kubectl rollout status \
-            deployment/cert-manager-webhook \
-            -n cert-manager \
-            --timeout=300s
-
 
 
       - name: Install NGINX Ingress Controller
@@ -216,20 +182,7 @@ jobs:
             --timeout 10m
 
 
-
-      - name: Verify NGINX Controller
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          kubectl rollout status \
-            deployment/ingress-nginx-controller \
-            -n ingress-nginx \
-            --timeout=300s
-
-
-
-      - name: Apply Namespace
+      - name: Apply Kubernetes Manifests
         shell: bash
         run: |
           set -euo pipefail
@@ -237,47 +190,18 @@ jobs:
           kubectl apply \
             -f manifests/namespace.yaml
 
-
-
-      - name: Apply StorageClass
-        shell: bash
-        run: |
-          set -euo pipefail
-
           kubectl apply \
             -f manifests/storageclass.yaml
 
-
-
-      - name: Apply Network Policies
-        shell: bash
-        run: |
-          set -euo pipefail
-
           kubectl apply \
             -f manifests/networkpolicy.yaml
-
-
-
-      - name: Apply RBAC
-        shell: bash
-        run: |
-          set -euo pipefail
 
           kubectl apply \
             -R \
             -f manifests/rbac/
 
-
-
-      - name: Apply ClusterIssuer
-        shell: bash
-        run: |
-          set -euo pipefail
-
           kubectl apply \
             -f manifests/clusterissuer.yaml
-
 
 
       - name: Verify Infrastructure
@@ -291,26 +215,20 @@ jobs:
           echo "Storage Classes"
           kubectl get storageclass
 
-          echo "Ingress Classes"
-          kubectl get ingressclass
-
           echo "EBS CSI"
           kubectl get pods -n kube-system | grep ebs
 
-          echo "cert-manager"
+          echo "Cert Manager"
           kubectl get pods -n cert-manager
 
-          echo "Ingress Controller"
+          echo "Ingress"
           kubectl get pods -n ingress-nginx
 
 
-
-      - name: Debug On Failure
+      - name: Debug Failure
         if: failure()
         shell: bash
         run: |
-          set +e
-
           kubectl get events \
             -A \
             --sort-by=.lastTimestamp
@@ -319,12 +237,11 @@ jobs:
             -A
 
 
-
       - name: Deployment Summary
         shell: bash
         run: |
-          echo "===================================="
-          echo "Infrastructure Deployment Completed"
-          echo "Cluster : ${CLUSTER_NAME}"
-          echo "Region  : ${AWS_REGION}"
-          echo "===================================="
+          echo "================================="
+          echo "Infrastructure Deployment Complete"
+          echo "Cluster: ${CLUSTER_NAME}"
+          echo "Region : ${AWS_REGION}"
+          echo "================================="
