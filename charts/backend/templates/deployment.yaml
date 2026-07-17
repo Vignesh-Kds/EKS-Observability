@@ -22,6 +22,16 @@ spec:
     spec:
       serviceAccountName: {{ include "backend.serviceAccountName" . }}
 
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "backend.selectorLabels" . | nindent 20 }}
+
       # Pod Security Context
       securityContext:
         runAsNonRoot: true
@@ -38,14 +48,11 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
 
-          # Container Security Context
           securityContext:
             allowPrivilegeEscalation: false
-
             runAsNonRoot: true
             runAsUser: 10001
             runAsGroup: 10001
-
             readOnlyRootFilesystem: true
 
             capabilities:

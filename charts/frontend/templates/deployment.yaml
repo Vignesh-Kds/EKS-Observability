@@ -22,6 +22,16 @@ spec:
     spec:
       serviceAccountName: {{ include "frontend.serviceAccountName" . }}
 
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                topologyKey: kubernetes.io/hostname
+                labelSelector:
+                  matchLabels:
+                    {{- include "frontend.selectorLabels" . | nindent 20 }}
+
       # Pod Security Context
       securityContext:
         runAsNonRoot: true
@@ -41,11 +51,9 @@ spec:
           # Container Security Context
           securityContext:
             allowPrivilegeEscalation: false
-
             runAsNonRoot: true
             runAsUser: 10001
             runAsGroup: 10001
-
             readOnlyRootFilesystem: true
 
             capabilities:
@@ -61,7 +69,6 @@ spec:
               protocol: TCP
 
           envFrom:
-
             - configMapRef:
                 name: {{ include "frontend.fullname" . }}
 
@@ -69,7 +76,6 @@ spec:
                 name: {{ include "frontend.fullname" . }}
 
           resources:
-
             requests:
               cpu: {{ .Values.resources.requests.cpu }}
               memory: {{ .Values.resources.requests.memory }}
@@ -79,7 +85,6 @@ spec:
               memory: {{ .Values.resources.limits.memory }}
 
           livenessProbe:
-
             httpGet:
               path: /
               port: http
@@ -90,7 +95,6 @@ spec:
             failureThreshold: 3
 
           readinessProbe:
-
             httpGet:
               path: /
               port: http
