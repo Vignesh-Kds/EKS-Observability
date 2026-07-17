@@ -14,6 +14,8 @@ on:
 env:
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
+  EBS_ROLE_NAME: AmazonEKS_EBS_CSI_DriverRole
+
 
 jobs:
 
@@ -30,20 +32,14 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      ############################################
-      # AWS Authentication
-      ############################################
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
+          aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+          aws-region: "${{ env.AWS_REGION }}"
 
-      ############################################
-      # Install Tools
-      ############################################
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
@@ -56,67 +52,114 @@ jobs:
         with:
           version: latest
 
-      ############################################
-      # Kubernetes Connection
-      ############################################
+
+      - name: Install eksctl
+        uses: nexxyz/eksctl-action@v0.1.1
+
 
       - name: Configure kubeconfig
+        shell: bash
         run: |
+          set -euo pipefail
+
           aws eks update-kubeconfig \
-            --region "${AWS_REGION}" \
-            --name "${CLUSTER_NAME}"
+            --name "${CLUSTER_NAME}" \
+            --region "${AWS_REGION}"
 
 
       - name: Verify Cluster Connectivity
+        shell: bash
         run: |
+          set -euo pipefail
+
           aws sts get-caller-identity
-          kubectl config current-context
+
           kubectl cluster-info
+
           kubectl get nodes
 
-      ############################################
-      # AWS EBS CSI DRIVER
-      ############################################
+
+
+      - name: Create EBS CSI IAM Role
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if aws iam get-role \
+            --role-name "${EBS_ROLE_NAME}" \
+            >/dev/null 2>&1
+          then
+            echo "EBS CSI IAM role already exists"
+          else
+            echo "Creating EBS CSI IAM role"
+
+            eksctl create iamserviceaccount \
+              --cluster "${CLUSTER_NAME}" \
+              --namespace kube-system \
+              --name ebs-csi-controller-sa \
+              --role-name "${EBS_ROLE_NAME}" \
+              --attach-policy-arn \
+              arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+              --approve
+          fi
+
+
 
       - name: Install AWS EBS CSI Driver
+        shell: bash
         run: |
+          set -euo pipefail
 
-          if aws eks list-addons \
+          ROLE_ARN=$(aws iam get-role \
+            --role-name "${EBS_ROLE_NAME}" \
+            --query "Role.Arn" \
+            --output text)
+
+
+          if aws eks describe-addon \
             --cluster-name "${CLUSTER_NAME}" \
-            --query addons \
-            --output text | grep -q aws-ebs-csi-driver
+            --addon-name aws-ebs-csi-driver \
+            >/dev/null 2>&1
           then
-
-            echo "AWS EBS CSI Driver already installed"
-
+            echo "EBS CSI addon already exists"
           else
-
-            echo "Installing AWS EBS CSI Driver"
+            echo "Installing EBS CSI addon"
 
             aws eks create-addon \
               --cluster-name "${CLUSTER_NAME}" \
-              --addon-name aws-ebs-csi-driver
-
+              --addon-name aws-ebs-csi-driver \
+              --service-account-role-arn "${ROLE_ARN}" \
+              --resolve-conflicts OVERWRITE
           fi
 
+
+
       - name: Wait For EBS CSI Driver
+        shell: bash
         run: |
+          set -euo pipefail
 
           aws eks wait addon-active \
             --cluster-name "${CLUSTER_NAME}" \
             --addon-name aws-ebs-csi-driver
 
+
+
       - name: Verify EBS CSI Driver
+        shell: bash
         run: |
+          set -euo pipefail
 
-          kubectl get pods -n kube-system | grep ebs
+          kubectl get pods \
+            -n kube-system \
+            | grep ebs
 
-      ############################################
-      # HELM REPOSITORIES
-      ############################################
+
 
       - name: Add Helm Repositories
+        shell: bash
         run: |
+          set -euo pipefail
 
           helm repo add ingress-nginx \
             https://kubernetes.github.io/ingress-nginx
@@ -126,12 +169,12 @@ jobs:
 
           helm repo update
 
-      ############################################
-      # CERT MANAGER
-      ############################################
+
 
       - name: Install cert-manager
+        shell: bash
         run: |
+          set -euo pipefail
 
           helm upgrade --install cert-manager \
             jetstack/cert-manager \
@@ -142,8 +185,11 @@ jobs:
             --timeout 10m
 
 
+
       - name: Verify cert-manager
+        shell: bash
         run: |
+          set -euo pipefail
 
           kubectl rollout status \
             deployment/cert-manager \
@@ -155,17 +201,12 @@ jobs:
             -n cert-manager \
             --timeout=300s
 
-          kubectl rollout status \
-            deployment/cert-manager-cainjector \
-            -n cert-manager \
-            --timeout=300s
 
-      ############################################
-      # NGINX INGRESS CONTROLLER
-      ############################################
 
       - name: Install NGINX Ingress Controller
+        shell: bash
         run: |
+          set -euo pipefail
 
           helm upgrade --install ingress-nginx \
             ingress-nginx/ingress-nginx \
@@ -174,20 +215,24 @@ jobs:
             --wait \
             --timeout 10m
 
-      - name: Verify Ingress Controller
+
+
+      - name: Verify NGINX Controller
+        shell: bash
         run: |
+          set -euo pipefail
 
           kubectl rollout status \
             deployment/ingress-nginx-controller \
             -n ingress-nginx \
             --timeout=300s
 
-      ############################################
-      # APPLICATION INFRASTRUCTURE
-      ############################################
 
-      - name: Create Production Namespace
+
+      - name: Apply Namespace
+        shell: bash
         run: |
+          set -euo pipefail
 
           kubectl apply \
             -f manifests/namespace.yaml
@@ -195,106 +240,91 @@ jobs:
 
 
       - name: Apply StorageClass
+        shell: bash
         run: |
+          set -euo pipefail
 
           kubectl apply \
             -f manifests/storageclass.yaml
 
+
+
       - name: Apply Network Policies
+        shell: bash
         run: |
+          set -euo pipefail
 
           kubectl apply \
             -f manifests/networkpolicy.yaml
 
+
+
       - name: Apply RBAC
+        shell: bash
         run: |
+          set -euo pipefail
 
           kubectl apply \
             -R \
             -f manifests/rbac/
 
-      ############################################
-      # CERTIFICATE ISSUER
-      ############################################
+
 
       - name: Apply ClusterIssuer
+        shell: bash
         run: |
+          set -euo pipefail
 
           kubectl apply \
             -f manifests/clusterissuer.yaml
 
-      ############################################
-      # VALIDATION
-      ############################################
+
 
       - name: Verify Infrastructure
+        shell: bash
         run: |
+          set -euo pipefail
 
-          echo "===== Namespaces ====="
+          echo "Namespaces"
           kubectl get ns
 
-
-          echo "===== Storage ====="
+          echo "Storage Classes"
           kubectl get storageclass
 
-          echo "===== Ingress ====="
+          echo "Ingress Classes"
           kubectl get ingressclass
 
+          echo "EBS CSI"
+          kubectl get pods -n kube-system | grep ebs
 
-          echo "===== EBS CSI ====="
-          kubectl get pods \
-            -n kube-system | grep ebs
+          echo "cert-manager"
+          kubectl get pods -n cert-manager
 
-          echo "===== Cert Manager ====="
-          kubectl get pods \
-            -n cert-manager
+          echo "Ingress Controller"
+          kubectl get pods -n ingress-nginx
 
-          echo "===== NGINX ====="
-          kubectl get pods \
-            -n ingress-nginx
 
-          echo "===== Services ====="
-          kubectl get svc \
-            -n ingress-nginx
 
-      ############################################
-      # FAILURE DEBUG
-      ############################################
-
-      - name: Describe Resources On Failure
+      - name: Debug On Failure
         if: failure()
+        shell: bash
         run: |
-
-          echo "===== Cluster Events ====="
+          set +e
 
           kubectl get events \
             -A \
             --sort-by=.lastTimestamp
 
-          echo "===== EBS CSI ====="
-
           kubectl get pods \
-            -n kube-system | grep ebs || true
+            -A
 
-          echo "===== Cert Manager ====="
 
-          kubectl get pods \
-            -n cert-manager || true
-
-          echo "===== Ingress ====="
-
-          kubectl get pods \
-            -n ingress-nginx || true
-
-      ############################################
-      # SUMMARY
-      ############################################
 
       - name: Deployment Summary
+        shell: bash
         run: |
-
-          echo "======================================"
+          echo "===================================="
           echo "Infrastructure Deployment Completed"
           echo "Cluster : ${CLUSTER_NAME}"
           echo "Region  : ${AWS_REGION}"
-          echo "======================================"
+          echo "===================================="
