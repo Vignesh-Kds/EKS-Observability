@@ -28,8 +28,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run Trivy Config Scan
         uses: aquasecurity/trivy-action@v0.36.0
@@ -40,7 +39,7 @@ jobs:
           output: trivy-results.sarif
           severity: HIGH,CRITICAL
 
-      - name: Upload Trivy SARIF
+      - name: Upload SARIF
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: trivy-results.sarif
@@ -50,47 +49,38 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Helm
         uses: azure/setup-helm@v4
 
-      - name: Install KubeLinter
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/stackrox/kube-linter/main/scripts/install.sh | sh
-          sudo mv kube-linter /usr/local/bin/
-          kube-linter version
-
       - name: Render Backend Chart
         run: |
           helm dependency update charts/backend || true
-          helm template backend charts/backend > backend.yaml
+          helm template test-release charts/backend > backend.yaml
 
       - name: Render Frontend Chart
         run: |
           helm dependency update charts/frontend || true
-          helm template frontend charts/frontend > frontend.yaml
+          helm template test-release charts/frontend > frontend.yaml
 
-      - name: Run KubeLinter on Helm Charts
+      - name: Prepare rendered manifests
         run: |
-          kube-linter lint backend.yaml
-          kube-linter lint frontend.yaml
+          mkdir rendered
+          mv backend.yaml rendered/
+          mv frontend.yaml rendered/
 
-      - name: Run KubeLinter on Kubernetes Manifests
-        run: |
-          if [ -d manifests ]; then
-            find manifests -type f \( -name "*.yaml" -o -name "*.yml" \) \
-              -exec kube-linter lint {} \;
-          fi
+      - name: Run KubeLinter
+        uses: stackrox/kube-linter-action@v1
+        with:
+          directory: rendered
 
   checkov:
     name: Checkov IaC Scan
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run Checkov
         uses: bridgecrewio/checkov-action@v12
@@ -104,8 +94,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run yamllint
         uses: ibiqlik/action-yamllint@v3
@@ -117,8 +106,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Run ShellCheck
         uses: ludeeus/action-shellcheck@2.0.0
