@@ -11,7 +11,6 @@ on:
     paths:
       - "manifests/**"
 
-
 env:
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
@@ -38,7 +37,7 @@ jobs:
 
 
       ############################################
-      # AWS Authentication
+      # AWS
       ############################################
 
       - name: Configure AWS Credentials
@@ -51,17 +50,15 @@ jobs:
 
 
       ############################################
-      # Install Tools
+      # Tools
       ############################################
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
 
 
-
       - name: Install Helm
         uses: azure/setup-helm@v4
-
 
 
       - name: Install eksctl
@@ -84,7 +81,7 @@ jobs:
 
 
       ############################################
-      # Configure Kubernetes
+      # Kubernetes Connection
       ############################################
 
       - name: Configure kubeconfig
@@ -103,6 +100,8 @@ jobs:
         run: |
           set -euo pipefail
 
+          aws sts get-caller-identity
+
           kubectl cluster-info
 
           kubectl get nodes
@@ -111,7 +110,7 @@ jobs:
 
 
       ############################################
-      # EBS CSI Driver Setup
+      # EBS CSI Driver
       ############################################
 
       - name: Enable IAM OIDC Provider
@@ -123,7 +122,6 @@ jobs:
             --region "${AWS_REGION}" \
             --cluster "${CLUSTER_NAME}" \
             --approve
-
 
 
 
@@ -139,7 +137,7 @@ jobs:
 
           then
 
-            echo "EBS CSI IAM role already exists"
+            echo "EBS CSI role already exists"
 
           else
 
@@ -157,7 +155,7 @@ jobs:
 
 
 
-      - name: Install AWS EBS CSI Addon
+      - name: Install EBS CSI Addon
         shell: bash
         run: |
           set -euo pipefail
@@ -177,7 +175,7 @@ jobs:
 
           then
 
-            echo "EBS CSI addon already exists"
+            echo "EBS CSI addon exists"
 
           else
 
@@ -188,7 +186,6 @@ jobs:
               --resolve-conflicts OVERWRITE
 
           fi
-
 
 
 
@@ -204,9 +201,8 @@ jobs:
 
 
 
-
       ############################################
-      # Helm Repositories
+      # Helm Repo
       ############################################
 
       - name: Add Helm Repositories
@@ -227,19 +223,14 @@ jobs:
 
 
 
-
       ############################################
-      # Cleanup Old cert-manager
+      # cert-manager Cleanup
       ############################################
 
-      - name: Cleanup Existing cert-manager CRDs
+      - name: Cleanup Old cert-manager
         shell: bash
         run: |
           set -euo pipefail
-
-
-          echo "Checking cert-manager CRDs"
-
 
 
           if kubectl get crd \
@@ -247,21 +238,12 @@ jobs:
 
           then
 
-            echo "Deleting old cert-manager CRDs"
-
-
             kubectl get crd \
               | grep cert-manager.io \
               | awk '{print $1}' \
               | xargs -r kubectl delete crd
 
-
-          else
-
-            echo "No cert-manager CRDs found"
-
           fi
-
 
 
           kubectl delete namespace cert-manager \
@@ -270,10 +252,8 @@ jobs:
 
 
 
-
-
       ############################################
-      # Install cert-manager
+      # cert-manager Install
       ############################################
 
       - name: Install cert-manager
@@ -299,27 +279,36 @@ jobs:
           set -euo pipefail
 
 
-          kubectl rollout status \
-            deployment/cert-manager \
-            -n cert-manager \
-            --timeout=300s
-
-
-          kubectl rollout status \
-            deployment/cert-manager-webhook \
-            -n cert-manager \
-            --timeout=300s
-
-
+          kubectl get pods \
+            -n cert-manager
 
 
 
 
       ############################################
-      # Install NGINX Ingress
+      # ingress-nginx Cleanup
       ############################################
 
-      - name: Install NGINX Ingress Controller
+      - name: Cleanup Old ingress-nginx
+        shell: bash
+        run: |
+          set -euo pipefail
+
+
+          kubectl delete namespace ingress-nginx \
+            --ignore-not-found=true
+
+
+          sleep 20
+
+
+
+
+      ############################################
+      # ingress-nginx Install
+      ############################################
+
+      - name: Install NGINX Ingress
         shell: bash
         run: |
           set -euo pipefail
@@ -332,6 +321,17 @@ jobs:
             --wait \
             --timeout 10m
 
+
+
+
+      - name: Verify ingress-nginx
+        shell: bash
+        run: |
+          set -euo pipefail
+
+
+          kubectl get pods \
+            -n ingress-nginx
 
 
 
@@ -378,15 +378,15 @@ jobs:
 
 
 
-
-
       ############################################
       # Verification
       ############################################
 
-      - name: Verify Infrastructure
+      - name: Final Verification
         shell: bash
         run: |
+          set -euo pipefail
+
 
           kubectl get nodes
 
@@ -430,12 +430,11 @@ jobs:
 
 
 
-
-      - name: Deployment Summary
+      - name: Summary
         run: |
 
           echo "================================"
-          echo "Infrastructure Deployment Done"
+          echo "Infrastructure deployment done"
           echo "Cluster : ${CLUSTER_NAME}"
           echo "Region  : ${AWS_REGION}"
           echo "================================"
