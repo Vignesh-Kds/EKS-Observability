@@ -2,6 +2,7 @@
 name: Infrastructure Deployment
 
 on:
+
   workflow_dispatch:
 
   push:
@@ -13,6 +14,7 @@ on:
 
 
 env:
+
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
   EBS_ROLE_NAME: AmazonEKS_EBS_CSI_DriverRole
@@ -31,49 +33,67 @@ jobs:
 
     steps:
 
+
       - name: Checkout Repository
         uses: actions/checkout@v4
 
 
+
       ############################################
-      # AWS Credentials
+      # AWS Authentication
       ############################################
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
+
         with:
+
           aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
+
           aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
+
           aws-region: "${{ env.AWS_REGION }}"
 
 
+
+
       ############################################
-      # Install Tools
+      # Tools
       ############################################
 
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
 
 
+
       - name: Install Helm
         uses: azure/setup-helm@v4
 
 
+
       - name: Install eksctl
         shell: bash
+
         run: |
+
           set -euo pipefail
+
 
           curl --silent --location \
             "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" \
             -o /tmp/eksctl.tar.gz
 
+
           tar -xzf /tmp/eksctl.tar.gz \
             -C /tmp
 
+
           sudo mv /tmp/eksctl /usr/local/bin/eksctl
 
+
           eksctl version
+
+
 
 
 
@@ -83,33 +103,49 @@ jobs:
 
       - name: Configure kubeconfig
         shell: bash
+
         run: |
+
           set -euo pipefail
+
 
           aws eks update-kubeconfig \
             --region "${AWS_REGION}" \
             --name "${CLUSTER_NAME}"
 
 
+
+
       - name: Verify Cluster
+
         shell: bash
+
         run: |
+
           set -euo pipefail
 
+
           kubectl cluster-info
+
 
           kubectl get nodes
 
 
 
+
+
       ############################################
-      # EBS CSI Driver
+      # EBS CSI DRIVER
       ############################################
 
-      - name: Enable IAM OIDC Provider
+      - name: Enable OIDC Provider
+
         shell: bash
+
         run: |
+
           set -euo pipefail
+
 
           eksctl utils associate-iam-oidc-provider \
             --region "${AWS_REGION}" \
@@ -118,9 +154,14 @@ jobs:
 
 
 
+
+
       - name: Create EBS CSI IAM Role
+
         shell: bash
+
         run: |
+
           set -euo pipefail
 
 
@@ -130,9 +171,11 @@ jobs:
 
           then
 
-            echo "EBS CSI role exists"
+            echo "IAM role exists"
+
 
           else
+
 
             eksctl create iamserviceaccount \
               --cluster "${CLUSTER_NAME}" \
@@ -143,20 +186,28 @@ jobs:
               arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
               --approve
 
+
           fi
 
 
 
+
+
       - name: Install EBS CSI Addon
+
         shell: bash
+
         run: |
+
           set -euo pipefail
+
 
 
           ROLE_ARN=$(aws iam get-role \
             --role-name "${EBS_ROLE_NAME}" \
-            --query "Role.Arn" \
+            --query Role.Arn \
             --output text)
+
 
 
           if aws eks describe-addon \
@@ -166,9 +217,11 @@ jobs:
 
           then
 
-            echo "EBS CSI addon already exists"
+            echo "Addon exists"
+
 
           else
+
 
             aws eks create-addon \
               --cluster-name "${CLUSTER_NAME}" \
@@ -176,14 +229,15 @@ jobs:
               --service-account-role-arn "${ROLE_ARN}" \
               --resolve-conflicts OVERWRITE
 
+
           fi
 
 
 
+
       - name: Wait EBS CSI
-        shell: bash
+
         run: |
-          set -euo pipefail
 
           aws eks wait addon-active \
             --cluster-name "${CLUSTER_NAME}" \
@@ -191,14 +245,15 @@ jobs:
 
 
 
+
+
       ############################################
-      # Helm Repositories
+      # HELM REPOSITORIES
       ############################################
 
       - name: Add Helm Repositories
-        shell: bash
+
         run: |
-          set -euo pipefail
 
           helm repo add jetstack \
             https://charts.jetstack.io
@@ -212,13 +267,18 @@ jobs:
 
 
 
+
+
       ############################################
-      # cert-manager Cleanup
+      # CERT MANAGER CLEANUP
       ############################################
 
-      - name: Cleanup Old cert-manager
+      - name: Cleanup cert-manager
+
         shell: bash
+
         run: |
+
           set -euo pipefail
 
 
@@ -228,19 +288,21 @@ jobs:
             | xargs -r kubectl delete crd
 
 
+
           kubectl delete namespace cert-manager \
             --ignore-not-found=true
 
 
 
+
+
       ############################################
-      # cert-manager Install
+      # CERT MANAGER INSTALL
       ############################################
 
       - name: Install cert-manager
-        shell: bash
+
         run: |
-          set -euo pipefail
 
 
           helm upgrade --install cert-manager \
@@ -253,21 +315,20 @@ jobs:
 
 
 
-      - name: Verify cert-manager
-        run: |
-          kubectl get pods \
-            -n cert-manager
-
 
 
       ############################################
-      # ingress-nginx Cleanup
+      # INGRESS CLEANUP
       ############################################
 
-      - name: Cleanup Old ingress-nginx
+      - name: Cleanup ingress-nginx
+
         shell: bash
+
         run: |
+
           set -euo pipefail
+
 
 
           helm uninstall ingress-nginx \
@@ -275,24 +336,59 @@ jobs:
             || true
 
 
+
           kubectl delete namespace ingress-nginx \
             --ignore-not-found=true \
             || true
 
 
-          kubectl delete clusterrole ingress-nginx \
+
+          kubectl delete serviceaccount \
+            ingress-nginx \
+            -n ingress-nginx \
             --ignore-not-found=true \
             || true
 
 
-          kubectl delete clusterrolebinding ingress-nginx \
+
+          kubectl delete clusterrole \
+            ingress-nginx \
             --ignore-not-found=true \
             || true
+
+
+
+          kubectl delete clusterrole \
+            ingress-nginx-admission \
+            --ignore-not-found=true \
+            || true
+
+
+
+          kubectl delete clusterrolebinding \
+            ingress-nginx \
+            --ignore-not-found=true \
+            || true
+
+
+
+          kubectl delete clusterrolebinding \
+            ingress-nginx-admission \
+            --ignore-not-found=true \
+            || true
+
+
+
+          kubectl delete ingressclass nginx \
+            --ignore-not-found=true \
+            || true
+
 
 
           kubectl delete ingressclass ingress-nginx \
             --ignore-not-found=true \
             || true
+
 
 
           kubectl delete validatingwebhookconfiguration \
@@ -302,14 +398,14 @@ jobs:
 
 
 
+
       ############################################
-      # ingress-nginx Install
+      # INSTALL INGRESS
       ############################################
 
-      - name: Install NGINX Ingress
-        shell: bash
+      - name: Install ingress-nginx
+
         run: |
-          set -euo pipefail
 
 
           helm upgrade --install ingress-nginx \
@@ -321,57 +417,69 @@ jobs:
 
 
 
-      - name: Verify ingress-nginx
-        run: |
-          kubectl get pods \
-            -n ingress-nginx
 
 
 
       ############################################
-      # Kubernetes Manifests
+      # APPLY MANIFESTS
       ############################################
 
       - name: Apply Namespace
+
         run: |
+
           kubectl apply \
             -f manifests/namespace.yaml
 
 
+
       - name: Apply StorageClass
+
         run: |
+
           kubectl apply \
             -f manifests/storageclass.yaml
 
 
+
       - name: Apply NetworkPolicy
+
         run: |
+
           kubectl apply \
             -f manifests/networkpolicy.yaml
 
 
+
       - name: Apply RBAC
+
         run: |
+
           kubectl apply \
             -R \
             -f manifests/rbac/
 
 
+
+
       - name: Apply ClusterIssuer
+
         run: |
+
           kubectl apply \
             -f manifests/clusterissuer.yaml
 
 
 
+
+
       ############################################
-      # Final Verification
+      # VERIFY
       ############################################
 
       - name: Verify Infrastructure
-        shell: bash
+
         run: |
-          set -euo pipefail
 
 
           kubectl get nodes
@@ -385,8 +493,10 @@ jobs:
             | grep ebs
 
 
+
           kubectl get pods \
             -n cert-manager
+
 
 
           kubectl get pods \
@@ -394,30 +504,24 @@ jobs:
 
 
 
+
+
       ############################################
-      # Debug
+      # DEBUG
       ############################################
 
       - name: Debug Failure
+
         if: failure()
-        shell: bash
+
         run: |
+
 
           kubectl get events \
             -A \
             --sort-by=.lastTimestamp
 
 
+
           kubectl get pods \
             -A
-
-
-
-      - name: Deployment Summary
-        run: |
-
-          echo "================================"
-          echo "Infrastructure Deployment Complete"
-          echo "Cluster: ${CLUSTER_NAME}"
-          echo "Region : ${AWS_REGION}"
-          echo "================================"
