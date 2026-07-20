@@ -1,310 +1,261 @@
----
 name: Infrastructure Deployment
 
 on:
-
   workflow_dispatch:
-
   push:
     branches:
       - main
       - master
     paths:
       - "manifests/**"
-
+      - ".github/workflows/**"
 
 env:
-
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
   EBS_ROLE_NAME: AmazonEKS_EBS_CSI_DriverRole
 
-
 jobs:
 
-  infrastructure:
-
-    name: Deploy Infrastructure to EKS
+  ############################################
+  # LINT
+  ############################################
+  lint:
+    name: Lint Workflow & Manifests
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-
-
     steps:
-
-
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      ############################################
+      # Lint the workflow file itself
+      ############################################
+      - name: Run actionlint
+        uses: raven-actions/actionlint@v2
+        with:
+          fail-on-error: true
 
+      ############################################
+      # Lint YAML style/syntax
+      ############################################
+      - name: Install yamllint
+        shell: bash
+        run: |
+          set -euo pipefail
+          pip install --quiet yamllint
+
+      - name: Run yamllint
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat > /tmp/yamllint-config.yml <<'EOF'
+          extends: default
+          rules:
+            line-length: disable
+            document-start: disable
+            truthy:
+              allowed-values: ["true", "false", "on"]
+          EOF
+          yamllint -c /tmp/yamllint-config.yml manifests/ .github/workflows/
+
+      ############################################
+      # Validate Kubernetes manifests
+      ############################################
+      - name: Install kubeconform
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --silent --location \
+            "https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz" \
+            -o /tmp/kubeconform.tar.gz
+          tar -xzf /tmp/kubeconform.tar.gz \
+            -C /tmp kubeconform
+          sudo mv /tmp/kubeconform /usr/local/bin/kubeconform
+          kubeconform -v
+
+      - name: Run kubeconform
+        shell: bash
+        run: |
+          set -euo pipefail
+          kubeconform \
+            -strict \
+            -ignore-missing-schemas \
+            -summary \
+            -kubernetes-version 1.29.0 \
+            manifests/
+
+  ############################################
+  # INFRASTRUCTURE
+  ############################################
+  infrastructure:
+    name: Deploy Infrastructure to EKS
+    needs: lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       ############################################
       # AWS Authentication
       ############################################
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
-
         with:
-
           aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
-
           aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-
           aws-region: "${{ env.AWS_REGION }}"
-
-
-
 
       ############################################
       # Tools
       ############################################
-
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
-
-
 
       - name: Install Helm
         uses: azure/setup-helm@v4
 
-
-
       - name: Install eksctl
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
           curl --silent --location \
             "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" \
             -o /tmp/eksctl.tar.gz
-
-
           tar -xzf /tmp/eksctl.tar.gz \
             -C /tmp
-
-
           sudo mv /tmp/eksctl /usr/local/bin/eksctl
-
-
           eksctl version
-
-
-
-
 
       ############################################
       # Kubernetes Access
       ############################################
-
       - name: Configure kubeconfig
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
           aws eks update-kubeconfig \
             --region "${AWS_REGION}" \
             --name "${CLUSTER_NAME}"
 
-
-
-
       - name: Verify Cluster
-
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
           kubectl cluster-info
-
-
           kubectl get nodes
-
-
-
-
 
       ############################################
       # EBS CSI DRIVER
       ############################################
-
       - name: Enable OIDC Provider
-
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
           eksctl utils associate-iam-oidc-provider \
             --region "${AWS_REGION}" \
             --cluster "${CLUSTER_NAME}" \
             --approve
 
-
-
-
-
       - name: Create EBS CSI IAM Role
-
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
           if aws iam get-role \
             --role-name "${EBS_ROLE_NAME}" \
             >/dev/null 2>&1
-
           then
-
             echo "IAM role exists"
-
-
           else
-
-
             eksctl create iamserviceaccount \
               --cluster "${CLUSTER_NAME}" \
               --namespace kube-system \
               --name ebs-csi-controller-sa \
               --role-name "${EBS_ROLE_NAME}" \
               --attach-policy-arn \
-              arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
+                arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy \
               --approve
-
-
           fi
 
-
-
-
-
       - name: Install EBS CSI Addon
-
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
-
           ROLE_ARN=$(aws iam get-role \
             --role-name "${EBS_ROLE_NAME}" \
             --query Role.Arn \
             --output text)
 
-
-
           if aws eks describe-addon \
             --cluster-name "${CLUSTER_NAME}" \
             --addon-name aws-ebs-csi-driver \
             >/dev/null 2>&1
-
           then
-
             echo "Addon exists"
-
-
           else
-
-
             aws eks create-addon \
               --cluster-name "${CLUSTER_NAME}" \
               --addon-name aws-ebs-csi-driver \
               --service-account-role-arn "${ROLE_ARN}" \
               --resolve-conflicts OVERWRITE
-
-
           fi
 
-
-
-
       - name: Wait EBS CSI
-
         run: |
-
           aws eks wait addon-active \
             --cluster-name "${CLUSTER_NAME}" \
             --addon-name aws-ebs-csi-driver
 
-
-
-
-
       ############################################
       # HELM REPOSITORIES
       ############################################
-
       - name: Add Helm Repositories
-
         run: |
-
           helm repo add jetstack \
             https://charts.jetstack.io
-
-
           helm repo add ingress-nginx \
             https://kubernetes.github.io/ingress-nginx
-
-
           helm repo update
-
-
-
-
 
       ############################################
       # CERT MANAGER CLEANUP
       ############################################
-
       - name: Cleanup cert-manager
-
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
-          kubectl get crd \
-            | grep cert-manager.io \
-            | awk '{print $1}' \
-            | xargs -r kubectl delete crd
-
-
+          echo "Uninstalling existing cert-manager (if present)..."
+          helm uninstall cert-manager \
+            --namespace cert-manager \
+            || true
 
           kubectl delete namespace cert-manager \
-            --ignore-not-found=true
+            --ignore-not-found=true \
+            --wait=true \
+            || true
 
+          echo "Waiting for namespace deletion..."
+          kubectl wait \
+            --for=delete namespace/cert-manager \
+            --timeout=120s \
+            || true
 
+          echo "Removing remaining cert-manager CRDs (if any)..."
+          kubectl get crd -o name \
+            | grep "cert-manager.io" \
+            | xargs -r kubectl delete \
+            || true
 
-
+          echo "cert-manager cleanup completed."
 
       ############################################
       # CERT MANAGER INSTALL
       ############################################
-
       - name: Install cert-manager
-
         run: |
-
-
           helm upgrade --install cert-manager \
             jetstack/cert-manager \
             --namespace cert-manager \
@@ -313,101 +264,56 @@ jobs:
             --wait \
             --timeout 10m
 
-
-
-
-
       ############################################
       # INGRESS CLEANUP
       ############################################
-
       - name: Cleanup ingress-nginx
-
         shell: bash
-
         run: |
-
           set -euo pipefail
-
-
-
           helm uninstall ingress-nginx \
             -n ingress-nginx \
             || true
-
-
-
           kubectl delete namespace ingress-nginx \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete serviceaccount \
             ingress-nginx \
             -n ingress-nginx \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete clusterrole \
             ingress-nginx \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete clusterrole \
             ingress-nginx-admission \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete clusterrolebinding \
             ingress-nginx \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete clusterrolebinding \
             ingress-nginx-admission \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete ingressclass nginx \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete ingressclass ingress-nginx \
             --ignore-not-found=true \
             || true
-
-
-
           kubectl delete validatingwebhookconfiguration \
             ingress-nginx-admission \
             --ignore-not-found=true \
             || true
 
-
-
-
       ############################################
       # INSTALL INGRESS
       ############################################
-
       - name: Install ingress-nginx
-
         run: |
-
-
           helm upgrade --install ingress-nginx \
             ingress-nginx/ingress-nginx \
             --namespace ingress-nginx \
@@ -415,113 +321,58 @@ jobs:
             --wait \
             --timeout 10m
 
-
-
-
-
-
       ############################################
       # APPLY MANIFESTS
       ############################################
-
       - name: Apply Namespace
-
         run: |
-
           kubectl apply \
             -f manifests/namespace.yaml
 
-
-
       - name: Apply StorageClass
-
         run: |
-
           kubectl apply \
             -f manifests/storageclass.yaml
 
-
-
       - name: Apply NetworkPolicy
-
         run: |
-
           kubectl apply \
             -f manifests/networkpolicy.yaml
 
-
-
       - name: Apply RBAC
-
         run: |
-
           kubectl apply \
             -R \
             -f manifests/rbac/
 
-
-
-
       - name: Apply ClusterIssuer
-
         run: |
-
           kubectl apply \
             -f manifests/clusterissuer.yaml
-
-
-
-
 
       ############################################
       # VERIFY
       ############################################
-
       - name: Verify Infrastructure
-
         run: |
-
-
           kubectl get nodes
-
-
           kubectl get storageclass
-
-
           kubectl get pods \
             -n kube-system \
             | grep ebs
-
-
-
           kubectl get pods \
             -n cert-manager
-
-
-
           kubectl get pods \
             -n ingress-nginx
-
-
-
-
 
       ############################################
       # DEBUG
       ############################################
-
       - name: Debug Failure
-
         if: failure()
-
         run: |
-
-
           kubectl get events \
             -A \
             --sort-by=.lastTimestamp
-
-
-
           kubectl get pods \
             -A
