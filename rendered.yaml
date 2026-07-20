@@ -4,11 +4,11 @@ apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 
 metadata:
-  name: release-name-postgres
+  name: postgres-postgres
   labels:
     helm.sh/chart: "postgres-1.0.0"
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
     app.kubernetes.io/version: "16.4"
     app.kubernetes.io/managed-by: "Helm"
 
@@ -16,7 +16,7 @@ spec:
   podSelector:
     matchLabels:
       app.kubernetes.io/name: "postgres"
-      app.kubernetes.io/instance: "release-name"
+      app.kubernetes.io/instance: "postgres"
 
   policyTypes:
     - Ingress
@@ -35,11 +35,11 @@ apiVersion: v1
 kind: ServiceAccount
 
 metadata:
-  name: release-name-postgres
+  name: postgres-postgres
   labels:
     helm.sh/chart: "postgres-1.0.0"
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
     app.kubernetes.io/version: "16.4"
     app.kubernetes.io/managed-by: "Helm"
 
@@ -51,11 +51,11 @@ apiVersion: v1
 kind: Secret
 
 metadata:
-  name: release-name-postgres
+  name: postgres-postgres
   labels:
     helm.sh/chart: "postgres-1.0.0"
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
     app.kubernetes.io/version: "16.4"
     app.kubernetes.io/managed-by: "Helm"
 
@@ -71,11 +71,11 @@ apiVersion: v1
 kind: ConfigMap
 
 metadata:
-  name: release-name-postgres
+  name: postgres-postgres
   labels:
     helm.sh/chart: "postgres-1.0.0"
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
     app.kubernetes.io/version: "16.4"
     app.kubernetes.io/managed-by: "Helm"
 
@@ -89,11 +89,11 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 
 metadata:
-  name: release-name-postgres-pvc
+  name: postgres-postgres-pvc
   labels:
     helm.sh/chart: "postgres-1.0.0"
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
     app.kubernetes.io/version: "16.4"
     app.kubernetes.io/managed-by: "Helm"
 
@@ -113,11 +113,11 @@ apiVersion: v1
 kind: Service
 
 metadata:
-  name: release-name-postgres
+  name: postgres-postgres
   labels:
     helm.sh/chart: "postgres-1.0.0"
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
     app.kubernetes.io/version: "16.4"
     app.kubernetes.io/managed-by: "Helm"
 
@@ -126,7 +126,7 @@ spec:
 
   selector:
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
 
   ports:
     - name: postgres
@@ -139,12 +139,12 @@ spec:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: release-name-postgres
+  name: postgres-postgres
   namespace: default
   labels:
     helm.sh/chart: "postgres-1.0.0"
     app.kubernetes.io/name: "postgres"
-    app.kubernetes.io/instance: "release-name"
+    app.kubernetes.io/instance: "postgres"
     app.kubernetes.io/version: "16.4"
     app.kubernetes.io/managed-by: "Helm"
 
@@ -154,16 +154,16 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: "postgres"
-      app.kubernetes.io/instance: "release-name"
+      app.kubernetes.io/instance: "postgres"
 
   template:
     metadata:
       labels:
         app.kubernetes.io/name: "postgres"
-        app.kubernetes.io/instance: "release-name"
+        app.kubernetes.io/instance: "postgres"
 
     spec:
-      serviceAccountName: release-name-postgres
+      serviceAccountName: postgres-postgres
       automountServiceAccountToken: false
 
       ########################################
@@ -179,38 +179,6 @@ spec:
         seccompProfile:
           type: RuntimeDefault
 
-      ########################################
-      # Fix EBS Volume Permissions
-      ########################################
-      initContainers:
-        - name: postgres-init-permissions
-          image: busybox:1.36
-
-          command:
-            - sh
-            - -c
-            - |
-              mkdir -p /var/lib/postgresql/data/pgdata
-              chown -R 999:999 /var/lib/postgresql/data
-
-          securityContext:
-            runAsUser: 0
-            runAsNonRoot: false
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-
-            capabilities:
-              drop:
-                - ALL
-
-            seccompProfile:
-              type: RuntimeDefault
-
-          volumeMounts:
-            - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
-
-      ########################################
       # PostgreSQL Container
       ########################################
       containers:
@@ -249,13 +217,13 @@ spec:
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: release-name-postgres
+                  name: postgres-postgres
                   key: POSTGRES_USER
 
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: release-name-postgres
+                  name: postgres-postgres
                   key: POSTGRES_PASSWORD
 
             - name: PGDATA
@@ -322,7 +290,7 @@ spec:
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
-            claimName: release-name-postgres-pvc
+            claimName: postgres-postgres-pvc
 
         - name: postgres-run
           emptyDir: {}
