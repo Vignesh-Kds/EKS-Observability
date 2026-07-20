@@ -1,3 +1,4 @@
+```yaml
 ---
 name: Security Scan
 
@@ -23,6 +24,10 @@ permissions:
 
 jobs:
 
+  #########################################################
+  # Trivy
+  #########################################################
+
   trivy:
     name: Trivy Configuration Scan
     runs-on: ubuntu-latest
@@ -44,6 +49,10 @@ jobs:
         with:
           sarif_file: trivy-results.sarif
 
+  #########################################################
+  # Kubernetes Manifest Lint
+  #########################################################
+
   kube-linter:
     name: Kubernetes Manifest Lint
     runs-on: ubuntu-latest
@@ -57,23 +66,33 @@ jobs:
       - name: Render Backend Chart
         run: |
           helm dependency update charts/backend || true
-          helm template test-release charts/backend > backend.yaml
+          helm template backend charts/backend > backend.yaml
 
       - name: Render Frontend Chart
         run: |
           helm dependency update charts/frontend || true
-          helm template test-release charts/frontend > frontend.yaml
+          helm template frontend charts/frontend > frontend.yaml
 
-      - name: Prepare rendered manifests
+      - name: Render PostgreSQL Chart
+        run: |
+          helm dependency update charts/postgres || true
+          helm template postgres charts/postgres > postgres.yaml
+
+      - name: Prepare Rendered Manifests
         run: |
           mkdir rendered
           mv backend.yaml rendered/
           mv frontend.yaml rendered/
+          mv postgres.yaml rendered/
 
       - name: Run KubeLinter
         uses: stackrox/kube-linter-action@v1
         with:
           directory: rendered
+
+  #########################################################
+  # Checkov
+  #########################################################
 
   checkov:
     name: Checkov IaC Scan
@@ -82,12 +101,40 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Run Checkov
+      - name: Setup Helm
+        uses: azure/setup-helm@v4
+
+      - name: Render Helm Charts
+        run: |
+          mkdir rendered
+
+          helm dependency update charts/backend || true
+          helm template backend charts/backend > rendered/backend.yaml
+
+          helm dependency update charts/frontend || true
+          helm template frontend charts/frontend > rendered/frontend.yaml
+
+          helm dependency update charts/postgres || true
+          helm template postgres charts/postgres > rendered/postgres.yaml
+
+      - name: Run Checkov (Rendered Kubernetes Manifests)
         uses: bridgecrewio/checkov-action@v12
         with:
-          directory: .
-          framework: kubernetes,helm,terraform
+          directory: rendered
+          framework: kubernetes
           quiet: true
+          output_format: sarif
+          output_file_path: results.sarif
+
+      - name: Upload Checkov SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: results.sarif
+
+  #########################################################
+  # YAML Lint
+  #########################################################
 
   yamllint:
     name: YAML Lint
@@ -101,6 +148,10 @@ jobs:
         with:
           file_or_dir: .
 
+  #########################################################
+  # ShellCheck
+  #########################################################
+
   shellcheck:
     name: Shell Script Lint
     runs-on: ubuntu-latest
@@ -112,6 +163,10 @@ jobs:
         uses: ludeeus/action-shellcheck@2.0.0
         with:
           scandir: ./scripts
+
+  #########################################################
+  # Summary
+  #########################################################
 
   summary:
     name: Security Scan Summary
@@ -138,3 +193,4 @@ jobs:
           echo "yamllint   : ${{ needs.yamllint.result }}"
           echo "ShellCheck : ${{ needs.shellcheck.result }}"
           echo "=========================================="
+```
