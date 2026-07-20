@@ -193,4 +193,3 @@ jobs:
           echo "yamllint   : ${{ needs.yamllint.result }}"
           echo "ShellCheck : ${{ needs.shellcheck.result }}"
           echo "=========================================="
-```
