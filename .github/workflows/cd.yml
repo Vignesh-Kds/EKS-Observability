@@ -185,17 +185,18 @@ jobs:
       ############################################
 
       - name: Cleanup cert-manager
-
         shell: bash
-
         run: |
           set -euo pipefail
+
           kubectl get crd \
             | grep cert-manager.io \
             | awk '{print $1}' \
-            | xargs -r kubectl delete crd
+            | xargs -r kubectl delete crd || true
+
           kubectl delete namespace cert-manager \
             --ignore-not-found=true
+
       ############################################
       # CERT MANAGER INSTALL
       ############################################
