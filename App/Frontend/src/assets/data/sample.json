@@ -1,0 +1,178 @@
+{
+  "cluster": {
+    "name": "vickycluster",
+    "region": "ap-south-1",
+    "status": "Healthy",
+    "version": "v1.34.9",
+    "nodes": 3,
+    "cpuUsage": 45,
+    "memoryUsage": 68,
+    "alerts": 2
+  },
+
+
+  "nodes": [
+    {
+      "name": "ip-192-168-46-193",
+      "status": "Ready",
+      "role": "worker",
+      "cpu": "35%",
+      "memory": "4Gi",
+      "pods": 18
+    },
+    {
+      "name": "ip-192-168-47-221",
+      "status": "Ready",
+      "role": "worker",
+      "cpu": "52%",
+      "memory": "6Gi",
+      "pods": 22
+    },
+    {
+      "name": "ip-192-168-48-105",
+      "status": "Ready",
+      "role": "worker",
+      "cpu": "40%",
+      "memory": "5Gi",
+      "pods": 20
+    }
+  ],
+
+
+  "pods": [
+    {
+      "name": "frontend-7d8f9c",
+      "namespace": "default",
+      "status": "Running",
+      "cpu": "120m",
+      "memory": "256Mi",
+      "restarts": 0
+    },
+    {
+      "name": "backend-6f7d8c",
+      "namespace": "default",
+      "status": "Running",
+      "cpu": "250m",
+      "memory": "512Mi",
+      "restarts": 1
+    },
+    {
+      "name": "postgres-0",
+      "namespace": "monitoring",
+      "status": "Running",
+      "cpu": "300m",
+      "memory": "1Gi",
+      "restarts": 0
+    },
+    {
+      "name": "prometheus-server",
+      "namespace": "monitoring",
+      "status": "Running",
+      "cpu": "400m",
+      "memory": "2Gi",
+      "restarts": 0
+    }
+  ],
+
+
+  "services": [
+    {
+      "name": "frontend-service",
+      "namespace": "default",
+      "type": "LoadBalancer",
+      "port": 80,
+      "status": "Running",
+      "endpoint": "frontend.example.com"
+    },
+    {
+      "name": "backend-service",
+      "namespace": "default",
+      "type": "ClusterIP",
+      "port": 8080,
+      "status": "Running",
+      "endpoint": "backend-service"
+    },
+    {
+      "name": "postgres-service",
+      "namespace": "monitoring",
+      "type": "ClusterIP",
+      "port": 5432,
+      "status": "Healthy",
+      "endpoint": "postgres-service"
+    }
+  ],
+
+
+  "metrics": {
+    "cpu": [
+      {
+        "time": "10:00",
+        "value": 35
+      },
+      {
+        "time": "10:05",
+        "value": 45
+      },
+      {
+        "time": "10:10",
+        "value": 60
+      },
+      {
+        "time": "10:15",
+        "value": 50
+      }
+    ],
+
+
+    "memory": [
+      {
+        "time": "10:00",
+        "value": 50
+      },
+      {
+        "time": "10:05",
+        "value": 65
+      },
+      {
+        "time": "10:10",
+        "value": 72
+      },
+      {
+        "time": "10:15",
+        "value": 68
+      }
+    ],
+
+
+    "requests": [
+      {
+        "service": "frontend",
+        "requests": 4500
+      },
+      {
+        "service": "backend",
+        "requests": 3200
+      },
+      {
+        "service": "database",
+        "requests": 1800
+      }
+    ]
+  },
+
+
+  "alerts": [
+    {
+      "name": "HighMemoryUsage",
+      "severity": "Warning",
+      "resource": "backend-pod",
+      "status": "Active"
+    },
+    {
+      "name": "PodRestartDetected",
+      "severity": "Critical",
+      "resource": "postgres-0",
+      "status": "Resolved"
+    }
+  ]
+}

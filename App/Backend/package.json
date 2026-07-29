@@ -1,0 +1,34 @@
+{
+  "name": "eks-observability-backend",
+  "version": "1.0.0",
+  "description": "Backend API for EKS Observability Dashboard",
+  "main": "src/server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "keywords": [
+    "express",
+    "kubernetes",
+    "eks",
+    "prometheus",
+    "grafana",
+    "loki",
+    "alertmanager"
+  ],
+  "author": "Vignesh",
+  "license": "MIT",
+  "dependencies": {
+    "@kubernetes/client-node": "^1.4.0",
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "helmet": "^8.1.0",
+    "morgan": "^1.10.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  }
+}

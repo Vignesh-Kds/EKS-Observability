@@ -1,0 +1,36 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Database Top -->
+
+  <ellipse cx="32" cy="16" rx="20" ry="8" fill="#16A34A"></ellipse>
+
+
+  <!-- Database Body -->
+
+  <path d="M12 16V32C12 36.4 21 40 32 40C43 40 52 36.4 52 32V16" fill="#22C55E"></path>
+
+
+  <!-- Database Middle Line -->
+
+  <path d="M12 24C12 28.4 21 32 32 32C43 32 52 28.4 52 24" stroke="#FFFFFF" stroke-width="2.5" opacity="0.7"></path>
+
+
+  <!-- Database Bottom -->
+
+  <path d="M12 32V44C12 48.4 21 52 32 52C43 52 52 48.4 52 44V32" fill="#15803D"></path>
+
+
+  <!-- Highlight -->
+
+  <ellipse cx="32" cy="16" rx="20" ry="8" stroke="#FFFFFF" stroke-width="2" opacity="0.5"></ellipse>
+
+
+  <!-- Storage Indicator -->
+
+  <circle cx="44" cy="44" r="7" fill="#2563EB"></circle>
+
+
+  <path d="M41 44L43 46L47 42" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+
+
+</svg>

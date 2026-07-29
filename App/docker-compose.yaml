@@ -1,0 +1,74 @@
+version: "3.9"
+
+services:
+
+  postgres:
+    image: postgres:16
+
+    container_name: postgres
+
+    restart: always
+
+    environment:
+      POSTGRES_DB: observability
+
+      POSTGRES_USER: postgres
+
+      POSTGRES_PASSWORD: postgres
+
+    ports:
+      - "5432:5432"
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+
+  backend:
+
+    build:
+      context: ./Backend
+
+    container_name: backend
+
+    restart: always
+
+    env_file:
+      - ./Backend/.env.local
+
+    ports:
+      - "5000:5000"
+
+    depends_on:
+      - postgres
+
+    networks:
+      - observability
+
+
+  frontend:
+
+    build:
+      context: ./Frontend
+
+    container_name: frontend
+
+    restart: always
+
+    ports:
+      - "3000:80"
+
+    depends_on:
+      - backend
+
+    networks:
+      - observability
+
+
+volumes:
+
+  postgres-data:
+
+
+networks:
+
+  observability:

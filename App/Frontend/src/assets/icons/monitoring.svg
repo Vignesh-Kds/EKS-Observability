@@ -1,0 +1,42 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Monitoring Screen -->
+
+  <rect x="10" y="12" width="44" height="32" rx="5" fill="#0EA5E9"></rect>
+
+
+  <!-- Dashboard Panel -->
+
+  <rect x="16" y="18" width="32" height="20" rx="3" fill="#FFFFFF"></rect>
+
+
+  <!-- Monitoring Graph -->
+
+  <path d="M20 32L25 27L30 30L36 23L43 28" stroke="#2563EB" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"></path>
+
+
+  <!-- Data Points -->
+
+  <circle cx="25" cy="27" r="2" fill="#2563EB"></circle>
+
+  <circle cx="36" cy="23" r="2" fill="#2563EB"></circle>
+
+
+
+  <!-- Monitor Stand -->
+
+  <path d="M32 44V52" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"></path>
+
+
+  <path d="M22 54H42" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"></path>
+
+
+
+  <!-- Health Indicator -->
+
+  <circle cx="50" cy="14" r="8" fill="#16A34A"></circle>
+
+
+  <path d="M46 14L49 17L54 11" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path>
+
+</svg>

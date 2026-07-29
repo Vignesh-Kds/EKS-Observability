@@ -1,0 +1,27 @@
+<svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Cluster Nodes -->
+
+  <circle cx="32" cy="12" r="8" fill="#2563EB"></circle>
+
+  <circle cx="14" cy="42" r="8" fill="#16A34A"></circle>
+
+  <circle cx="50" cy="42" r="8" fill="#7C3AED"></circle>
+
+
+  <!-- Connections -->
+
+  <path d="M32 20L18 36" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"></path>
+
+  <path d="M32 20L46 36" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"></path>
+
+  <path d="M22 42H42" stroke="#94A3B8" stroke-width="3" stroke-linecap="round"></path>
+
+
+  <!-- Center Cluster -->
+
+  <circle cx="32" cy="42" r="7" fill="#0F172A"></circle>
+
+  <circle cx="32" cy="42" r="3" fill="#FFFFFF"></circle>
+
+</svg>

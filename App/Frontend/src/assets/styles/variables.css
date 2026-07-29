@@ -1,0 +1,163 @@
+/* ==========================================
+   Global CSS Variables
+   EKS Observability Dashboard
+   ========================================== */
+
+
+:root {
+
+
+  /* ========================================
+     Brand Colors
+     ======================================== */
+
+
+  --primary-color: #2563eb;
+
+  --primary-light: #60a5fa;
+
+  --primary-dark: #1e40af;
+
+
+  --secondary-color: #7c3aed;
+
+
+  /* ========================================
+     Status Colors
+     ======================================== */
+
+
+  --success-color: #16a34a;
+
+  --warning-color: #d97706;
+
+  --danger-color: #dc2626;
+
+  --info-color: #0284c7;
+
+
+
+  /* ========================================
+     Background Colors
+     ======================================== */
+
+
+  --background-color: #f5f7fb;
+
+  --surface-color: #ffffff;
+
+  --sidebar-color: #111827;
+
+  --navbar-color: #ffffff;
+
+
+
+  /* ========================================
+     Text Colors
+     ======================================== */
+
+
+  --text-primary: #111827;
+
+  --text-secondary: #6b7280;
+
+  --text-muted: #9ca3af;
+
+  --text-white: #ffffff;
+
+
+
+  /* ========================================
+     Border Colors
+     ======================================== */
+
+
+  --border-color: #e5e7eb;
+
+  --border-radius-sm: 6px;
+
+  --border-radius-md: 12px;
+
+  --border-radius-lg: 18px;
+
+
+
+  /* ========================================
+     Shadows
+     ======================================== */
+
+
+  --shadow-sm:
+    0 2px 6px rgba(0,0,0,0.05);
+
+
+  --shadow-md:
+    0 4px 12px rgba(0,0,0,0.08);
+
+
+  --shadow-lg:
+    0 10px 25px rgba(0,0,0,0.12);
+
+
+
+  /* ========================================
+     Layout Sizes
+     ======================================== */
+
+
+  --sidebar-width: 240px;
+
+  --navbar-height: 64px;
+
+
+  --content-padding: 24px;
+
+
+
+  /* ========================================
+     Spacing System
+     ======================================== */
+
+
+  --space-xs: 4px;
+
+  --space-sm: 8px;
+
+  --space-md: 16px;
+
+  --space-lg: 24px;
+
+  --space-xl: 32px;
+
+
+
+  /* ========================================
+     Font Sizes
+     ======================================== */
+
+
+  --font-xs: 12px;
+
+  --font-sm: 14px;
+
+  --font-md: 16px;
+
+  --font-lg: 20px;
+
+  --font-xl: 28px;
+
+  --font-xxl: 36px;
+
+
+
+  /* ========================================
+     Animation
+     ======================================== */
+
+
+  --transition-fast: 0.2s ease;
+
+  --transition-normal: 0.3s ease;
+
+
+}
