@@ -1,6 +1,7 @@
+---
 checks:
   exclude:
     - dangling-service
     - non-existent-service-account
-#How to handle the false positives
-#The best approach is to exclude only those two checks and keep the rest of KubeLinter enabled.
+# How to handle the false positives
+# The best approach is to exclude only those two checks and keep the rest of KubeLinter enabled.
