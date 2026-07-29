@@ -1,21 +1,17 @@
-FROM node:20-alpine AS build
-
-WORKDIR /app
-
-COPY package*.json ./
-
-RUN npm install
-
-COPY . .
-
-RUN npm run build
-
-
 FROM nginx:alpine
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=builder /app/dist /usr/share/nginx/html
 
-COPY --from=build /app/dist /usr/share/nginx/html
+RUN addgroup -S nginxgroup && \
+    adduser -S nginxuser -G nginxgroup
+
+RUN chown -R nginxuser:nginxgroup \
+    /usr/share/nginx/html \
+    /var/cache/nginx \
+    /var/run \
+    /var/log/nginx
+
+USER nginxuser
 
 EXPOSE 80
 
