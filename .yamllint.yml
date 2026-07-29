@@ -4,7 +4,10 @@ extends: default
 ignore: |
   .github/
   charts/**/templates/**
-
+  **/node_modules/**
+  **/.git/**
+  **/*.lock
+  **/coverage/**
 rules:
 
   line-length:
