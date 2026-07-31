@@ -211,15 +211,17 @@ jobs:
             --create-namespace \
             --wait \
             --timeout 20m
-      - name: Install Loki
+      - name: Install Loki Stack
         run: |
-
-          helm upgrade --install \
-            loki \
-            grafana/loki \
+          helm repo add grafana https://grafana.github.io/helm-charts
+            helm repo update
+            helm upgrade --install loki-stack grafana/loki-stack \
             --namespace monitoring \
+            --create-namespace \
+            --set grafana.enabled=false \
+            --set prometheus.enabled=false \
             --wait \
-            --timeout 10m
+            --timeout 15m
       - name: Install Promtail
         run: |
 
