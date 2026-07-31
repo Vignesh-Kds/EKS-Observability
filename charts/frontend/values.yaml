@@ -1,10 +1,10 @@
 ---
 # Number of frontend replicas
-replicaCount: 2
+replicaCount: 1
 
 image:
   repository: vigneshawss/frontend
-  tag: "v1.0.0"
+  tag: "v1.0.2"
   pullPolicy: Always
 
 service:
@@ -31,8 +31,8 @@ resources:
     memory: 512Mi
 
 autoscaling:
-  enabled: true
-  minReplicas: 2
+  enabled: false
+  minReplicas: 1
   maxReplicas: 5
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
