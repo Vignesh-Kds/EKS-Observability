@@ -4,11 +4,11 @@ replicaCount: 1
 
 image:
   repository: vigneshawss/frontend
-  tag: "v1.0.2"
+  tag: "v1.0.6"
   pullPolicy: Always
 
 service:
-  type: ClusterIP
+  type: LoadBalancer
   port: 80
   targetPort: 3000
 
