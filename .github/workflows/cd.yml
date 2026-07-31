@@ -1,117 +1,64 @@
-
 ---
 name: Infrastructure Deployment
-
 on:
-
-  workflow_dispatch:
-
+  workflow_dispatch: null
   push:
     branches:
       - main
       - master
     paths:
-      - "manifests/**"
-
-
+      - manifests/**
 env:
-
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
   EBS_ROLE_NAME: AmazonEKS_EBS_CSI_DriverRole
-
-
 jobs:
-
   infrastructure:
-
     name: Deploy Infrastructure to EKS
     runs-on: ubuntu-latest
-
     permissions:
       contents: read
-
-
     steps:
-
-
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-
-
-      ############################################
-      # AWS Authentication
-      ############################################
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
-
         with:
-
-          aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
-
-          aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-
-          aws-region: "${{ env.AWS_REGION }}"
-
-
-
-
-      ############################################
-      # Tools
-      ############################################
-
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
       - name: Install kubectl
         uses: azure/setup-kubectl@v4
-
-
-
       - name: Install Helm
         uses: azure/setup-helm@v4
-
-
-
       - name: Install eksctl
         shell: bash
-
-        run: |
+        run: >
           set -euo pipefail
+
           curl --silent --location \
             "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_Linux_amd64.tar.gz" \
             -o /tmp/eksctl.tar.gz
           tar -xzf /tmp/eksctl.tar.gz \
             -C /tmp
           sudo mv /tmp/eksctl /usr/local/bin/eksctl
-          eksctl version
-      ############################################
-      # Kubernetes Access
-      ############################################
 
+          eksctl version
       - name: Configure kubeconfig
         shell: bash
-
         run: |
           set -euo pipefail
           aws eks update-kubeconfig \
             --region "${AWS_REGION}" \
             --name "${CLUSTER_NAME}"
       - name: Verify Cluster
-
         shell: bash
-
         run: |
           set -euo pipefail
           kubectl cluster-info
           kubectl get nodes
-      ############################################
-      # EBS CSI DRIVER
-      ############################################
-
       - name: Enable OIDC Provider
-
         shell: bash
-
         run: |
           set -euo pipefail
           eksctl utils associate-iam-oidc-provider \
@@ -119,9 +66,7 @@ jobs:
             --cluster "${CLUSTER_NAME}" \
             --approve
       - name: Create EBS CSI IAM Role
-
         shell: bash
-
         run: |
           set -euo pipefail
           if aws iam get-role \
@@ -140,9 +85,7 @@ jobs:
               --approve
           fi
       - name: Install EBS CSI Addon
-
         shell: bash
-
         run: |
           set -euo pipefail
           ROLE_ARN=$(aws iam get-role \
@@ -163,27 +106,31 @@ jobs:
               --resolve-conflicts OVERWRITE
           fi
       - name: Wait EBS CSI
-
         run: |
           aws eks wait addon-active \
             --cluster-name "${CLUSTER_NAME}" \
             --addon-name aws-ebs-csi-driver
-      ############################################
-      # HELM REPOSITORIES
-      ############################################
+      - name: Install Metrics Server
+        run: >
 
+          if kubectl get deployment metrics-server -n kube-system >/dev/null 2>&1
+                  then
+                         echo "Metrics Server already installed"
+                  else
+                         kubectl apply \
+                                -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+
+                          kubectl rollout status deployment/metrics-server \
+                                -n kube-system \
+                                --timeout=5m
+          fi
       - name: Add Helm Repositories
-
-        run: |
-          helm repo add jetstack \
-            https://charts.jetstack.io
-          helm repo add ingress-nginx \
-            https://kubernetes.github.io/ingress-nginx
-          helm repo update
-      ############################################
-      # CERT MANAGER CLEANUP
-      ############################################
-
+        run: >
+          helm repo add jetstack https://charts.jetstack.io
+            helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+            helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+            helm repo add grafana https://grafana.github.io/helm-charts
+            helm repo update
       - name: Cleanup cert-manager
         shell: bash
         run: |
@@ -196,13 +143,7 @@ jobs:
 
           kubectl delete namespace cert-manager \
             --ignore-not-found=true
-
-      ############################################
-      # CERT MANAGER INSTALL
-      ############################################
-
       - name: Install cert-manager
-
         run: |
           helm upgrade --install cert-manager \
             jetstack/cert-manager \
@@ -211,14 +152,8 @@ jobs:
             --set crds.enabled=true \
             --wait \
             --timeout 10m
-      ############################################
-      # INGRESS CLEANUP
-      ############################################
-
       - name: Cleanup ingress-nginx
-
         shell: bash
-
         run: |
           set -euo pipefail
           helm uninstall ingress-nginx \
@@ -258,12 +193,7 @@ jobs:
             ingress-nginx-admission \
             --ignore-not-found=true \
             || true
-      ############################################
-      # INSTALL INGRESS
-      ############################################
-
       - name: Install ingress-nginx
-
         run: |
           helm upgrade --install ingress-nginx \
             ingress-nginx/ingress-nginx \
@@ -271,42 +201,61 @@ jobs:
             --create-namespace \
             --wait \
             --timeout 10m
-      ############################################
-      # APPLY MANIFESTS
-      ############################################
+      - name: Install kube-prometheus-stack
+        run: |
 
+          helm upgrade --install \
+            kube-prometheus-stack \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --wait \
+            --timeout 20m
+      - name: Install Loki
+        run: |
+
+          helm upgrade --install \
+            loki \
+            grafana/loki \
+            --namespace monitoring \
+            --wait \
+            --timeout 10m
+      - name: Install Promtail
+        run: |
+
+          helm upgrade --install \
+             promtail \
+             grafana/promtail \
+             --namespace monitoring \
+             --wait \
+             --timeout 10m \
+             --set config.clients[0].url=http://loki:3100/loki/api/v1/push
+
+          ############################################
+          # APPLY MANIFESTS
+          ############################################
       - name: Apply Namespace
-
         run: |
           kubectl apply \
             -f manifests/namespace.yaml
       - name: Apply StorageClass
-
         run: |
           kubectl apply \
             -f manifests/storageclass.yaml
       - name: Apply NetworkPolicy
-
         run: |
           kubectl apply \
             -f manifests/networkpolicy.yaml
       - name: Apply RBAC
-
         run: |
           kubectl apply \
             -R \
             -f manifests/rbac/
       - name: Apply ClusterIssuer
-
         run: |
           kubectl apply \
             -f manifests/clusterissuer.yaml
-      ############################################
-      # VERIFY
-      ############################################
-
       - name: Verify Infrastructure
-
         run: |
           kubectl get nodes
           kubectl get storageclass
@@ -317,17 +266,37 @@ jobs:
             -n cert-manager
           kubectl get pods \
             -n ingress-nginx
-      ############################################
-      # DEBUG
-      ############################################
 
+          ############################################
+          # VERIFY MONITORING
+          ############################################
+      - name: Verify Monitoring Stack
+        run: |
+
+          echo "Pods"
+          kubectl get pods -n monitoring
+
+          echo
+          echo "Services"
+          kubectl get svc -n monitoring
+
+          echo
+          echo "PVC"
+          kubectl get pvc -n monitoring
+
+          echo
+          echo "Ingress"
+          kubectl get ingress -A
       - name: Debug Failure
-
         if: failure()
-
         run: |
           kubectl get events \
             -A \
             --sort-by=.lastTimestamp
           kubectl get pods \
-            -A
+            -A -o wide
+          kubectl describe pods -n monitoring
+
+          kubectl get svc -A
+
+          kubectl get pvc -A
