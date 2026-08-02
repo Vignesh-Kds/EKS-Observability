@@ -1,34 +1,36 @@
----
 apiVersion: apps/v1
 kind: Deployment
+
 metadata:
-  name:
-    '{ include "frontend.fullname" . }': null
-  namespace:
-    "{ .Release.Namespace }": null
+  name: {{ include "frontend.fullname" . }}
+  namespace: {{ .Release.Namespace }}
   labels:
-    '{ include "frontend.labels" . | nindent 4 }': null
+    {{- include "frontend.labels" . | nindent 4 }}
+
 spec:
-  replicas:
-    "{ .Values.replicaCount }": null
+  replicas: {{ .Values.replicaCount }}
+
   selector:
     matchLabels:
-      '{ include "frontend.selectorLabels" . | nindent 6 }': null
+      {{- include "frontend.selectorLabels" . | nindent 6 }}
+
   template:
     metadata:
       labels:
-        '{ include "frontend.selectorLabels" . | nindent 8 }': null
+        {{- include "frontend.selectorLabels" . | nindent 8 }}
+
     spec:
-      serviceAccountName:
-        '{ include "frontend.serviceAccountName" . }': null
+      serviceAccountName: {{ include "frontend.serviceAccountName" . }}
       automountServiceAccountToken: false
-      volumes:
-        - name: nginx-cache
-          emptyDir: {}
-        - name: nginx-tmp
-          emptyDir: {}
-        - name: nginx-log
-          emptyDir: {}
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        fsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -37,60 +39,68 @@ spec:
                 topologyKey: kubernetes.io/hostname
                 labelSelector:
                   matchLabels:
-                    '{ include "frontend.selectorLabels" . | nindent 20 }': null
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 10001
-        runAsGroup: 10001
-        fsGroup: 10001
-        seccompProfile:
-          type: RuntimeDefault
+                    {{- include "frontend.selectorLabels" . | nindent 20 }}
+
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+
+        - name: nginx-tmp
+          emptyDir: {}
+
+        - name: nginx-log
+          emptyDir: {}
+
       containers:
         - name: frontend
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy:
-            "{ .Values.image.pullPolicy }": null
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
             runAsUser: 10001
             runAsGroup: 10001
             readOnlyRootFilesystem: true
+
             capabilities:
               drop:
                 - ALL
+
             seccompProfile:
               type: RuntimeDefault
+
           volumeMounts:
             - name: nginx-cache
               mountPath: /var/cache/nginx
+
             - name: nginx-tmp
               mountPath: /tmp
+
             - name: nginx-log
               mountPath: /var/log/nginx
+
           ports:
             - name: http
-              containerPort:
-                "{ .Values.service.targetPort }": null
+              containerPort: {{ .Values.service.targetPort }}
               protocol: TCP
+
           envFrom:
             - configMapRef:
-                name:
-                  '{ include "frontend.fullname" . }': null
+                name: {{ include "frontend.fullname" . }}
+
             - secretRef:
-                name:
-                  '{ include "frontend.fullname" . }': null
+                name: {{ include "frontend.fullname" . }}
+
           resources:
             requests:
-              cpu:
-                "{ .Values.resources.requests.cpu }": null
-              memory:
-                "{ .Values.resources.requests.memory }": null
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+
             limits:
-              cpu:
-                "{ .Values.resources.limits.cpu }": null
-              memory:
-                "{ .Values.resources.limits.memory }": null
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+
           livenessProbe:
             httpGet:
               path: /
@@ -99,6 +109,7 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+
           readinessProbe:
             httpGet:
               path: /
@@ -107,4 +118,5 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
+
       restartPolicy: Always
