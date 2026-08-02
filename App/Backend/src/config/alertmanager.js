@@ -1,4 +1,4 @@
-const axios = require("axios");
+import axios from "axios";
 
 const alertmanager = axios.create({
   baseURL:
@@ -7,4 +7,4 @@ const alertmanager = axios.create({
   timeout: 10000,
 });
 
-module.exports = alertmanager;
+export default alertmanager;

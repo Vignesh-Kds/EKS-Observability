@@ -1,21 +1,19 @@
-const express = require("express");
+import express from "express";
+import * as controller from "../controllers/alertmanagerController.js";
+
 const router = express.Router();
 
-const controller = require("../controllers/alertmanagerController");
-
-// GET all alerts
+// Alerts
 router.get("/alerts", controller.alerts);
 
-// GET all silences
+// Silences
 router.get("/silences", controller.silences);
 
-// GET dashboard summary
-router.get("/status", controller.status);
-
-// POST create a silence
 router.post("/silences", controller.createSilence);
 
-// DELETE a silence
 router.delete("/silences/:id", controller.deleteSilence);
 
-module.exports = router;
+// Dashboard summary
+router.get("/status", controller.status);
+
+export default router;

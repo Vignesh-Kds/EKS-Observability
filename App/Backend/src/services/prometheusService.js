@@ -1,148 +1,205 @@
 import { executeQuery } from "../config/prometheus.js";
 
 /**
- * Generic Prometheus query helper
- */
-const queryPrometheus = async (query) => {
-  try {
-    const response = await axios.get(`${PROMETHEUS_URL}/api/v1/query`, {
-      params: {
-        query,
-      },
-      timeout: 5000,
-    });
-
-    return response.data;
-  } catch (error) {
-    console.warn("Prometheus unavailable. Returning mock data.");
-
-    return null;
-  }
-};
-
-/**
+ * ======================================================
  * Cluster Metrics
+ * ======================================================
  */
 export const fetchClusterMetrics = async () => {
-  const result = await queryPrometheus("sum(kube_node_status_capacity)");
+  try {
+    const [
+      nodeCount,
+      podCount,
+      deploymentCount,
+      namespaceCount,
+      cpuUsage,
+      memoryUsage,
+    ] = await Promise.all([
+      executeQuery("count(kube_node_info)"),
+      executeQuery("count(kube_pod_info)"),
+      executeQuery("count(kube_deployment_labels)"),
+      executeQuery("count(kube_namespace_created)"),
+      executeQuery(
+        `100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)`
+      ),
+      executeQuery(
+        `(1 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))) * 100`
+      ),
+    ]);
 
-  if (result) {
-    return result;
+    return {
+      clusterName: process.env.CLUSTER_NAME || "vickycluster",
+
+      nodes: Number(nodeCount?.data?.result?.[0]?.value?.[1] || 0),
+
+      pods: Number(podCount?.data?.result?.[0]?.value?.[1] || 0),
+
+      deployments: Number(
+        deploymentCount?.data?.result?.[0]?.value?.[1] || 0
+      ),
+
+      namespaces: Number(
+        namespaceCount?.data?.result?.[0]?.value?.[1] || 0
+      ),
+
+      cpuUsage: Number(
+        Number(cpuUsage?.data?.result?.[0]?.value?.[1] || 0).toFixed(1)
+      ),
+
+      memoryUsage: Number(
+        Number(memoryUsage?.data?.result?.[0]?.value?.[1] || 0).toFixed(1)
+      ),
+
+      status: "Healthy",
+    };
+  } catch (err) {
+    console.error("Prometheus Cluster Metrics Error", err);
+
+    return {
+      clusterName: "vickycluster",
+      nodes: 0,
+      pods: 0,
+      deployments: 0,
+      namespaces: 0,
+      cpuUsage: 0,
+      memoryUsage: 0,
+      status: "Unavailable",
+    };
   }
-
-  return {
-    clusterName: "vickycluster",
-    nodes: 3,
-    pods: 42,
-    deployments: 12,
-    namespaces: 5,
-    cpuUsage: 46,
-    memoryUsage: 58,
-    status: "Healthy",
-  };
 };
 
 /**
+ * ======================================================
  * Node Metrics
+ * ======================================================
  */
 export const fetchNodeMetrics = async () => {
-  const result = await executeQuery("node_cpu_seconds_total");
+  try {
+    const response = await executeQuery(
+      `100 - (avg by(instance)(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)`
+    );
 
-  if (result) {
-    return result;
+    return response.data.result.map((item) => ({
+      name: item.metric.instance,
+
+      cpu: Number(parseFloat(item.value[1]).toFixed(2)),
+
+      status: "Ready",
+    }));
+  } catch (err) {
+    console.error(err);
+
+    return [];
   }
-
-  return [
-    {
-      name: "ip-192-168-1-10",
-      cpu: 34,
-      memory: 49,
-      status: "Ready",
-    },
-    {
-      name: "ip-192-168-1-11",
-      cpu: 57,
-      memory: 61,
-      status: "Ready",
-    },
-    {
-      name: "ip-192-168-1-12",
-      cpu: 21,
-      memory: 39,
-      status: "Ready",
-    },
-  ];
 };
 
 /**
+ * ======================================================
  * Pod Metrics
+ * ======================================================
  */
 export const fetchPodMetrics = async () => {
-  const result = await queryPrometheus("kube_pod_info");
+  try {
+    const response = await executeQuery(
+      `kube_pod_status_phase{phase="Running"}`
+    );
 
-  if (result) {
-    return result;
+    return response.data.result.map((item) => ({
+      name: item.metric.pod,
+
+      namespace: item.metric.namespace,
+
+      status: "Running",
+    }));
+  } catch (err) {
+    console.error(err);
+
+    return [];
   }
-
-  return [
-    {
-      name: "frontend-7cbb8fd7f8",
-      namespace: "default",
-      status: "Running",
-      restarts: 0,
-      cpu: 0.24,
-      memory: "128Mi",
-    },
-    {
-      name: "backend-6cbd58fd95",
-      namespace: "default",
-      status: "Running",
-      restarts: 1,
-      cpu: 0.31,
-      memory: "256Mi",
-    },
-    {
-      name: "postgres-0",
-      namespace: "database",
-      status: "Running",
-      restarts: 0,
-      cpu: 0.15,
-      memory: "512Mi",
-    },
-  ];
 };
 
 /**
+ * ======================================================
  * Service Metrics
+ * ======================================================
  */
 export const fetchServiceMetrics = async () => {
-  const result = await queryPrometheus("kube_service_info");
+  try {
+    const response = await executeQuery(`kube_service_info`);
 
-  if (result) {
-    return result;
+    return response.data.result.map((item) => ({
+      name: item.metric.service,
+
+      namespace: item.metric.namespace,
+
+      clusterIP: item.metric.cluster_ip,
+
+      type: item.metric.type || "ClusterIP",
+    }));
+  } catch (err) {
+    console.error(err);
+
+    return [];
   }
+};
 
-  return [
-    {
-      name: "frontend-service",
-      namespace: "default",
-      type: "LoadBalancer",
-      clusterIP: "10.96.0.10",
-      ports: "80",
-    },
-    {
-      name: "backend-service",
-      namespace: "default",
-      type: "ClusterIP",
-      clusterIP: "10.96.0.20",
-      ports: "5000",
-    },
-    {
-      name: "postgres-service",
-      namespace: "database",
-      type: "ClusterIP",
-      clusterIP: "10.96.0.30",
-      ports: "5432",
-    },
-  ];
+/**
+ * ======================================================
+ * Prometheus Targets
+ * ======================================================
+ */
+export const fetchTargets = async () => {
+  try {
+    const response = await executeQuery("up");
+
+    return response.data.result.map((item) => ({
+      instance: item.metric.instance,
+
+      job: item.metric.job,
+
+      status: item.value[1] === "1" ? "UP" : "DOWN",
+    }));
+  } catch (err) {
+    console.error(err);
+
+    return [];
+  }
+};
+
+/**
+ * ======================================================
+ * CPU Usage Graph
+ * ======================================================
+ */
+export const fetchCpuGraph = async () => {
+  try {
+    const response = await executeQuery(
+      `100 - (avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) * 100)`
+    );
+
+    return response.data.result;
+  } catch (err) {
+    console.error(err);
+
+    return [];
+  }
+};
+
+/**
+ * ======================================================
+ * Memory Usage Graph
+ * ======================================================
+ */
+export const fetchMemoryGraph = async () => {
+  try {
+    const response = await executeQuery(
+      `(1 - (sum(node_memory_MemAvailable_bytes) / sum(node_memory_MemTotal_bytes))) * 100`
+    );
+
+    return response.data.result;
+  } catch (err) {
+    console.error(err);
+
+    return [];
+  }
 };

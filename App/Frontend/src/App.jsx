@@ -1,8 +1,9 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
 import MainLayout from "./layouts/MainLayout";
 
 import Dashboard from "./pages/Dashboard";
-import Monitoring from "./pages/Monitoring";
+import MonitorHeart from "./pages/MonitorHeart";
 import Database from "./pages/Database";
 import Services from "./pages/Services";
 import Settings from "./pages/Settings";
@@ -14,7 +15,7 @@ function App() {
       <MainLayout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/monitoring" element={<Monitoring />} />
+          <Route path="/monitorHeart" element={<MonitorHeart />} />
           <Route path="/database" element={<Database />} />
           <Route path="/services" element={<Services />} />
           <Route path="/settings" element={<Settings />} />

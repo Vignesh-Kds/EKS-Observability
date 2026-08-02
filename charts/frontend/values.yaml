@@ -4,7 +4,7 @@ replicaCount: 1
 
 image:
   repository: vigneshawss/frontend
-  tag: "v1.0.6"
+  tag: "v1.0.9"
   pullPolicy: Always
 
 service:

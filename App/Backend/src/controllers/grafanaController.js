@@ -1,6 +1,6 @@
-const service = require("../services/grafanaService");
+import * as service from "../services/grafanaService.js";
 
-exports.listDashboards = async (req, res) => {
+export const listDashboards = async (req, res) => {
   try {
     const dashboards = await service.listDashboards();
     res.json(dashboards);
@@ -11,7 +11,7 @@ exports.listDashboards = async (req, res) => {
   }
 };
 
-exports.getDashboard = async (req, res) => {
+export const getDashboard = async (req, res) => {
   try {
     const dashboard = await service.getDashboard(req.params.uid);
     res.json(dashboard);
@@ -22,7 +22,7 @@ exports.getDashboard = async (req, res) => {
   }
 };
 
-exports.listFolders = async (req, res) => {
+export const listFolders = async (req, res) => {
   try {
     const folders = await service.listFolders();
     res.json(folders);

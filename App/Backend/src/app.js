@@ -8,10 +8,11 @@ import healthRoutes from "./routes/health.js";
 import metricsRoutes from "./routes/metrics.js";
 import kubernetesRoutes from "./routes/kubernetes.js";
 import lokiRoutes from "./routes/loki.js";
+import prometheusRoutes from "./routes/prometheus.js";
 
 // Uncomment these after creating the route files
-// import alertmanagerRoutes from "./routes/alertmanager.js";
-// import grafanaRoutes from "./routes/grafana.js";
+import alertmanagerRoutes from "./routes/alertmanager.js";
+import grafanaRoutes from "./routes/grafana.js";
 
 // Middleware
 import errorHandler from "./middleware/errorHandler.js";
@@ -65,14 +66,16 @@ app.use("/api/logs", lokiRoutes);
 // (Enable after creating routes/alertmanager.js)
 // ======================================================
 
-// app.use("/api/alertmanager", alertmanagerRoutes);
+app.use("/api/alertmanager", alertmanagerRoutes);
 
 // ======================================================
 // Grafana API
 // (Enable after creating routes/grafana.js)
 // ======================================================
 
-// app.use("/api/grafana", grafanaRoutes);
+app.use("/api/grafana", grafanaRoutes);
+
+app.use("/api/prometheus", prometheusRoutes);
 
 // ======================================================
 // Root Endpoint

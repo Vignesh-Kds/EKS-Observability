@@ -1,6 +1,6 @@
-const grafana = require("../config/grafana");
+import grafana from "../config/grafana.js";
 
-exports.listDashboards = async () => {
+export const listDashboards = async () => {
   const { data } = await grafana.get("/search");
 
   return data.map((dashboard) => ({
@@ -14,12 +14,12 @@ exports.listDashboards = async () => {
   }));
 };
 
-exports.getDashboard = async (uid) => {
+export const getDashboard = async (uid) => {
   const { data } = await grafana.get(`/dashboards/uid/${uid}`);
   return data;
 };
 
-exports.listFolders = async () => {
+export const listFolders = async () => {
   const { data } = await grafana.get("/folders");
   return data;
 };

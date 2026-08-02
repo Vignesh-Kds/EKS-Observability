@@ -1,33 +1,37 @@
-const alertmanager = require("../config/alertmanager");
+import alertmanager from "../config/alertmanager.js";
 
-exports.getAlerts = async () => {
+export const getAlerts = async () => {
   const { data } = await alertmanager.get("/alerts");
   return data;
 };
 
-exports.getSilences = async () => {
+export const getSilences = async () => {
   const { data } = await alertmanager.get("/silences");
   return data;
 };
 
-exports.createSilence = async (body) => {
+export const createSilence = async (body) => {
   const { data } = await alertmanager.post("/silences", body);
   return data;
 };
 
-exports.deleteSilence = async (id) => {
+export const deleteSilence = async (id) => {
   const { data } = await alertmanager.delete(`/silence/${id}`);
   return data;
 };
 
-exports.getStatus = async () => {
-  const alerts = await exports.getAlerts();
-  const silences = await exports.getSilences();
+export const getStatus = async () => {
+  const alerts = await getAlerts();
+  const silences = await getSilences();
 
   return {
     totalAlerts: alerts.length,
-    firing: alerts.filter(a => a.status.state === "active").length,
-    suppressed: alerts.filter(a => a.status.state === "suppressed").length,
+    firing: alerts.filter(
+      a => a.status.state === "active"
+    ).length,
+    suppressed: alerts.filter(
+      a => a.status.state === "suppressed"
+    ).length,
     silences: silences.length,
     activeSilences: silences.filter(
       s => s.status.state === "active"

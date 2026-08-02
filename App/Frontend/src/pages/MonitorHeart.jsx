@@ -26,7 +26,7 @@ import StatusBadge from "../components/StatusBadge";
 
 
 
-function Monitoring() {
+function MonitorHeart() {
 
 
   const resources = [
@@ -438,4 +438,4 @@ function Monitoring() {
 }
 
 
-export default Monitoring;
+export default MonitorHeart;
