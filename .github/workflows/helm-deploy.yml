@@ -1,100 +1,65 @@
 ---
 name: Helm Deploy
-
 on:
-
-  workflow_dispatch:
-
+  workflow_dispatch: null
   push:
     branches:
       - main
       - master
     paths:
-      - "charts/**"
-
-
+      - charts/**
 env:
-
   AWS_REGION: ap-south-1
   CLUSTER_NAME: vickycluster
   NAMESPACE: monitoring
-
-
 jobs:
-
   helm-deploy:
-
     name: Deploy Helm Charts to Amazon EKS
-
     runs-on: ubuntu-latest
-
     permissions:
-
       contents: read
-
-
     steps:
-
-
       - name: Checkout Repository
         uses: actions/checkout@v4
-
-
-
-      ############################################
-      # AWS
-      ############################################
-
       - name: Configure AWS Credentials
-
         uses: aws-actions/configure-aws-credentials@v4
-
         with:
-
-          aws-access-key-id: "${{ secrets.AWS_ACCESS_KEY_ID }}"
-
-          aws-secret-access-key: "${{ secrets.AWS_SECRET_ACCESS_KEY }}"
-
-          aws-region: "${{ env.AWS_REGION }}"
-
-
-
-
-
-      ############################################
-      # Tools
-      ############################################
-
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build and Push Backend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./App/Backend
+          push: true
+          tags: |
+            vigneshawss/backend:${{ github.sha }}
+            vigneshawss/backend:latest
+      - name: Build and Push Frontend
+        uses: docker/build-push-action@v6
+        with:
+          context: ./App/Frontend
+          push: true
+          tags: |
+            vigneshawss/frontend:${{ github.sha }}
+            vigneshawss/frontend:latest
       - name: Install kubectl
-
         uses: azure/setup-kubectl@v4
-
         with:
-
           version: latest
-
-
-
       - name: Install Helm
-
         uses: azure/setup-helm@v4
-
         with:
-
           version: latest
-
-
-
-
-
-      ############################################
-      # Kubernetes Connection
-      ############################################
-
       - name: Configure kubeconfig
-
         shell: bash
-
         run: |
 
           set -euo pipefail
@@ -103,15 +68,8 @@ jobs:
           aws eks update-kubeconfig \
             --region "${AWS_REGION}" \
             --name "${CLUSTER_NAME}"
-
-
-
-
-
       - name: Verify Cluster
-
         shell: bash
-
         run: |
 
           set -euo pipefail
@@ -121,38 +79,16 @@ jobs:
 
 
           kubectl get nodes
-
-
-
-
-
-      ############################################
-      # Namespace
-      ############################################
-
       - name: Create Namespace
-
         shell: bash
-
         run: |
 
           kubectl create namespace "${NAMESPACE}" \
             --dry-run=client \
             -o yaml \
             | kubectl apply -f -
-
-
-
-
-
-      ############################################
-      # Helm Validation
-      ############################################
-
       - name: Helm Lint
-
         shell: bash
-
         run: |
 
           helm lint charts/postgres
@@ -160,29 +96,12 @@ jobs:
           helm lint charts/backend
 
           helm lint charts/frontend
-
-
-
-
-
       - name: Existing Helm Releases
-
         run: |
 
           helm list -A
-
-
-
-
-
-      ############################################
-      # PostgreSQL
-      ############################################
-
       - name: Deploy PostgreSQL
-
         shell: bash
-
         run: |
 
           set -euo pipefail
@@ -194,15 +113,8 @@ jobs:
             --create-namespace \
             --wait \
             --timeout 15m
-
-
-
-
-
       - name: Verify PostgreSQL
-
         shell: bash
-
         run: |
 
           set -euo pipefail
@@ -225,53 +137,25 @@ jobs:
 
           kubectl get deployment \
             -n "${NAMESPACE}" || true
-
-
-
-
-
-      ############################################
-      # Backend
-      ############################################
-
       - name: Deploy Backend
-
         shell: bash
-
         run: |
 
           set -euo pipefail
-
-
           helm upgrade --install backend \
             ./charts/backend \
             --namespace "${NAMESPACE}" \
+            --set image.repository=vigneshawss/backend \
+            --set image.tag=${{ github.sha }} \
             --wait \
             --timeout 15m
-
-
-
-
-
       - name: Verify Backend
-
         run: |
 
           kubectl get pods \
             -n "${NAMESPACE}"
-
-
-
-
-
-      ############################################
-      # Frontend
-      ############################################
-
       - name: Deploy Frontend
-
         shell: bash
-
         run: |
 
           set -euo pipefail
@@ -280,30 +164,16 @@ jobs:
           helm upgrade --install frontend \
             ./charts/frontend \
             --namespace "${NAMESPACE}" \
+            --set image.repository=vigneshawss/frontend \
+            --set image.tag=${{ github.sha }} \
             --wait \
             --timeout 15m
-
-
-
-
-
-      ############################################
-      # Verification
-      ############################################
-
       - name: Verify Helm Releases
-
         run: |
 
           helm list \
             -n "${NAMESPACE}"
-
-
-
-
-
       - name: Verify Kubernetes Resources
-
         run: |
 
           kubectl get all \
@@ -317,21 +187,9 @@ jobs:
           kubectl get ingress \
             -n "${NAMESPACE}" \
             || true
-
-
-
-
-
-      ############################################
-      # Failure Debug
-      ############################################
-
       - name: Debug Deployment Failure
-
         if: failure()
-
         shell: bash
-
         run: |
 
           echo "===== EVENTS ====="
@@ -356,13 +214,7 @@ jobs:
 
           kubectl describe pods \
             -n "${NAMESPACE}"
-
-
-
-
-
       - name: Deployment Summary
-
         run: |
 
           echo "======================================"

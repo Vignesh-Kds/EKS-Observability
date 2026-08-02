@@ -21,3 +21,9 @@ data:
 
   # Logging
   LOG_LEVEL: {{ .Values.config.LOG_LEVEL | quote }}
+
+  # Observability
+  PROMETHEUS_URL: {{ .Values.config.PROMETHEUS_URL | quote }}
+  ALERTMANAGER_URL: {{ .Values.config.ALERTMANAGER_URL | quote }}
+  GRAFANA_URL: {{ .Values.config.GRAFANA_URL | quote }}
+  LOKI_URL: {{ .Values.config.LOKI_URL | quote }}

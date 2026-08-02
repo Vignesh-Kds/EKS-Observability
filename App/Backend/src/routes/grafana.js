@@ -1,8 +1,7 @@
-const express = require("express");
+import express from "express";
+import controller from "../controllers/grafanaController.js";
 
 const router = express.Router();
-
-const controller = require("../controllers/grafanaController");
 
 router.get("/dashboards", controller.listDashboards);
 
@@ -10,4 +9,4 @@ router.get("/dashboards/:uid", controller.getDashboard);
 
 router.get("/folders", controller.listFolders);
 
-module.exports = router;
+export default router;

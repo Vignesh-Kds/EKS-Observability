@@ -1,78 +1,57 @@
-# Number of backend replicas
 ---
 replicaCount: 1
-
 image:
   repository: vigneshawss/backend
-  tag: "v1.0.0"
+  tag: v1.0.0
   pullPolicy: Always
-
 service:
   type: ClusterIP
   port: 80
   targetPort: 5000
-
 ingress:
   enabled: false
   className: nginx
-
   host: backend.example.com
-
   tls:
     enabled: false
     secretName: backend-tls
-
 resources:
   requests:
     cpu: 200m
     memory: 256Mi
-
   limits:
     cpu: 1000m
     memory: 1Gi
-
 autoscaling:
   enabled: true
   minReplicas: 1
   maxReplicas: 5
-
   targetCPUUtilizationPercentage: 70
   targetMemoryUtilizationPercentage: 80
-
 serviceAccount:
   create: true
   name: ""
   automount: false
-
   annotations: {}
-
 config:
   APP_NAME: backend
   NODE_ENV: production
-
-  # Database Configuration
-  DB_HOST: mysql-service
-  DB_PORT: "3306"
+  DB_HOST: postgres-postgres
+  DB_PORT: "5432"
   DB_NAME: appdb
-
-  # AWS Configuration
   AWS_REGION: ap-south-1
-
-  # Logging
   LOG_LEVEL: info
-
+  PROMETHEUS_URL: http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090
+  ALERTMANAGER_URL: http://kube-prometheus-stack-alertmanager.monitoring.svc.cluster.local:9093/api/v2
+  GRAFANA_URL: http://kube-prometheus-stack-grafana.monitoring.svc.cluster.local:80
+  LOKI_URL: http://loki-stack.monitoring.svc.cluster.local:3100
 secret:
   enabled: true
-
   dbUsername: appuser
   dbPassword: change-me
-
   jwtSecret: change-me
-
   apiKey: change-me
-
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}
+
