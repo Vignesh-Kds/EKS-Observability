@@ -1,28 +1,34 @@
+---
 apiVersion: apps/v1
 kind: Deployment
-
 metadata:
-  name: {{ include "frontend.fullname" . }}
-  namespace: {{ .Release.Namespace }}
+  name:
+    '{ include "frontend.fullname" . }': null
+  namespace:
+    "{ .Release.Namespace }": null
   labels:
-    {{- include "frontend.labels" . | nindent 4 }}
-
+    '{ include "frontend.labels" . | nindent 4 }': null
 spec:
-  replicas: {{ .Values.replicaCount }}
-
+  replicas:
+    "{ .Values.replicaCount }": null
   selector:
     matchLabels:
-      {{- include "frontend.selectorLabels" . | nindent 6 }}
-
+      '{ include "frontend.selectorLabels" . | nindent 6 }': null
   template:
     metadata:
       labels:
-        {{- include "frontend.selectorLabels" . | nindent 8 }}
-
+        '{ include "frontend.selectorLabels" . | nindent 8 }': null
     spec:
-      serviceAccountName: {{ include "frontend.serviceAccountName" . }}
+      serviceAccountName:
+        '{ include "frontend.serviceAccountName" . }': null
       automountServiceAccountToken: false
-
+      volumes:
+        - name: nginx-cache
+          emptyDir: {}
+        - name: nginx-tmp
+          emptyDir: {}
+        - name: nginx-log
+          emptyDir: {}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -31,78 +37,74 @@ spec:
                 topologyKey: kubernetes.io/hostname
                 labelSelector:
                   matchLabels:
-                    {{- include "frontend.selectorLabels" . | nindent 20 }}
-
-      # Pod Security Context
+                    '{ include "frontend.selectorLabels" . | nindent 20 }': null
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
         runAsGroup: 10001
         fsGroup: 10001
-
         seccompProfile:
           type: RuntimeDefault
-
       containers:
         - name: frontend
-
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-
-          # Container Security Context
+          imagePullPolicy:
+            "{ .Values.image.pullPolicy }": null
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
             runAsUser: 10001
             runAsGroup: 10001
-            readOnlyRootFilesystem: false
-
+            readOnlyRootFilesystem: true
             capabilities:
               drop:
                 - ALL
-
             seccompProfile:
               type: RuntimeDefault
-
+          volumeMounts:
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-tmp
+              mountPath: /tmp
+            - name: nginx-log
+              mountPath: /var/log/nginx
           ports:
             - name: http
-              containerPort: {{ .Values.service.targetPort }}
+              containerPort:
+                "{ .Values.service.targetPort }": null
               protocol: TCP
-
           envFrom:
             - configMapRef:
-                name: {{ include "frontend.fullname" . }}
-
+                name:
+                  '{ include "frontend.fullname" . }': null
             - secretRef:
-                name: {{ include "frontend.fullname" . }}
-
+                name:
+                  '{ include "frontend.fullname" . }': null
           resources:
             requests:
-              cpu: {{ .Values.resources.requests.cpu }}
-              memory: {{ .Values.resources.requests.memory }}
-
+              cpu:
+                "{ .Values.resources.requests.cpu }": null
+              memory:
+                "{ .Values.resources.requests.memory }": null
             limits:
-              cpu: {{ .Values.resources.limits.cpu }}
-              memory: {{ .Values.resources.limits.memory }}
-
+              cpu:
+                "{ .Values.resources.limits.cpu }": null
+              memory:
+                "{ .Values.resources.limits.memory }": null
           livenessProbe:
             httpGet:
               path: /
               port: http
-
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
-
           readinessProbe:
             httpGet:
               path: /
               port: http
-
             initialDelaySeconds: 10
             periodSeconds: 5
             timeoutSeconds: 3
             failureThreshold: 3
-
       restartPolicy: Always

@@ -54,4 +54,3 @@ secret:
 nodeSelector: {}
 tolerations: []
 affinity: {}
-
